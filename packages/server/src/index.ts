@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { serve } from '@hono/node-server';
 import type { DbAdapter } from '@sql-magic/core';
-import { NodeSqliteAdapter } from '@sql-magic/core/server';
+import { NodeSqliteAdapter, createAdapter, detectDialectFromUrl, maskConnectionString } from '@sql-magic/core/server';
 import { createSecurityMiddleware, generateRandomToken } from './security.js';
 import { DatabaseWatcher } from './watcher.js';
 import { scanDirectoryForDatabases, type DatabaseFileInfo } from './scanner.js';
@@ -75,6 +75,20 @@ export function createViewerApp(options: ServerOptions = {}) {
     }
     const databases = scanDirectoryForDatabases(options.targetPath);
     return c.json({ databases });
+  });
+
+  // 3.1. Schemas listing (Postgres schemas, MySQL databases)
+  app.get('/api/schemas', async (c) => {
+    if (!options.adapter) {
+      return c.json({ schemas: ['main'] });
+    }
+    try {
+      const schemas = await options.adapter.listSchemas();
+      return c.json({ schemas });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: msg }, 500);
+    }
   });
 
   // 4. Schema introspection
@@ -225,18 +239,24 @@ export async function startViewer(options: ServerOptions = {}): Promise<ViewerIn
   let adapter = options.adapter;
   let watcher: DatabaseWatcher | undefined;
 
-  // If a file path was provided and no adapter, initialize NodeSqliteAdapter
-  if (!adapter && options.targetPath && fs.existsSync(options.targetPath)) {
-    const stat = fs.statSync(options.targetPath);
-    if (stat.isFile()) {
-      adapter = new NodeSqliteAdapter(options.targetPath, {
+  // If a connection string or file path was provided, initialize adapter
+  if (!adapter && options.targetPath) {
+    const isUrl = /^(postgres(ql)?|mysql|mariadb|sqlite):\/\//i.test(options.targetPath);
+    if (isUrl) {
+      adapter = await createAdapter(options.targetPath, {
         readOnly: options.readOnly,
       });
-      await (adapter as NodeSqliteAdapter).init();
+    } else if (fs.existsSync(options.targetPath)) {
+      const stat = fs.statSync(options.targetPath);
+      if (stat.isFile()) {
+        adapter = await createAdapter(options.targetPath, {
+          readOnly: options.readOnly,
+        });
 
-      if (options.watch !== false) {
-        watcher = new DatabaseWatcher(options.targetPath);
-        watcher.start();
+        if (options.watch !== false) {
+          watcher = new DatabaseWatcher(options.targetPath);
+          watcher.start();
+        }
       }
     }
   }

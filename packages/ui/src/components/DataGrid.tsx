@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ColumnMeta, ResultSet } from '@sql-magic/core';
+import type { ColumnMeta, ForeignKeyInfo, ResultSet } from '@sql-magic/core';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -19,6 +19,8 @@ import {
   FileText,
   FileCode,
   FileJson,
+  ExternalLink,
+  Key,
 } from 'lucide-react';
 import {
   exportToCsv,
@@ -32,6 +34,8 @@ import {
 interface DataGridProps {
   resultSet: ResultSet;
   tableName?: string;
+  foreignKeys?: ForeignKeyInfo[];
+  onNavigateForeignKey?: (refTable: string, refCol: string, val: unknown) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -45,6 +49,8 @@ interface ColumnSort {
 export const DataGrid: React.FC<DataGridProps> = ({
   resultSet,
   tableName = 'result',
+  foreignKeys = [],
+  onNavigateForeignKey,
   theme = 'dark',
 }) => {
   const [globalSearch, setGlobalSearch] = useState<string>('');
@@ -54,6 +60,15 @@ export const DataGrid: React.FC<DataGridProps> = ({
   const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string; val: unknown } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Fast FK lookup
+  const fkLookup = useMemo(() => {
+    const map = new Map<string, ForeignKeyInfo>();
+    for (const fk of foreignKeys) {
+      map.set(fk.column, fk);
+    }
+    return map;
+  }, [foreignKeys]);
 
   // Sorting state
   const [sort, setSort] = useState<ColumnSort>({ column: '', direction: null });
@@ -489,16 +504,33 @@ export const DataGrid: React.FC<DataGridProps> = ({
                               minWidth: `${width}px`,
                               maxWidth: `${width}px`,
                             }}
-                            className="px-3 py-1.5 border-r border-zinc-800/80 truncate text-zinc-200 cursor-pointer hover:bg-indigo-950/30 transition"
+                            className="px-3 py-1.5 border-r border-zinc-800/80 truncate text-zinc-200 cursor-pointer hover:bg-indigo-950/30 transition group/cell"
                             title={String(val)}
                           >
-                            {isNull ? (
-                              <span className="text-zinc-600 italic">null</span>
-                            ) : typeof val === 'object' ? (
-                              <span className="text-amber-400/90">{JSON.stringify(val)}</span>
-                            ) : (
-                              String(val)
-                            )}
+                            <div className="flex items-center justify-between">
+                              <span className="truncate">
+                                {isNull ? (
+                                  <span className="text-zinc-600 italic">null</span>
+                                ) : typeof val === 'object' ? (
+                                  <span className="text-amber-400/90">{JSON.stringify(val)}</span>
+                                ) : (
+                                  String(val)
+                                )}
+                              </span>
+                              {!isNull && fkLookup.has(col.name) && onNavigateForeignKey && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const fk = fkLookup.get(col.name)!;
+                                    onNavigateForeignKey(fk.referencedTable, fk.referencedColumn, val);
+                                  }}
+                                  className="ml-1 p-0.5 rounded text-amber-400/70 hover:text-amber-300 hover:bg-amber-950/50 transition opacity-0 group-hover/cell:opacity-100"
+                                  title={`Follow FK ➜ ${fkLookup.get(col.name)!.referencedTable}(${fkLookup.get(col.name)!.referencedColumn})`}
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         );
                       })}
@@ -552,6 +584,19 @@ export const DataGrid: React.FC<DataGridProps> = ({
             </pre>
           </div>
           <div className="flex items-center gap-2 pt-1">
+            {selectedCell.val !== null && selectedCell.val !== undefined && fkLookup.has(selectedCell.col) && onNavigateForeignKey && (
+              <button
+                onClick={() => {
+                  const fk = fkLookup.get(selectedCell.col)!;
+                  onNavigateForeignKey(fk.referencedTable, fk.referencedColumn, selectedCell.val);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 border border-amber-800/60 transition"
+                title={`Jump to ${fkLookup.get(selectedCell.col)!.referencedTable}`}
+              >
+                <Key className="w-3.5 h-3.5 text-amber-400" />
+                <span>Jump to {fkLookup.get(selectedCell.col)!.referencedTable}</span>
+              </button>
+            )}
             <button
               onClick={() => copyCell(selectedCell.val)}
               className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"

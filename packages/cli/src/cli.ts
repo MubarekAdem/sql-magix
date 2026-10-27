@@ -4,36 +4,49 @@ import * as path from 'node:path';
 import { Command } from 'commander';
 import pc from 'picocolors';
 import open from 'open';
-import { NodeSqliteAdapter } from '@sql-magic/core/server';
+import dotenv from 'dotenv';
+import { createAdapter, maskConnectionString, detectDialectFromUrl } from '@sql-magic/core/server';
 import { startViewer, scanDirectoryForDatabases } from '@sql-magic/server';
+
+// Load .env or .env.local if present
+dotenv.config();
+if (fs.existsSync('.env.local')) {
+  dotenv.config({ path: '.env.local', override: true });
+}
 
 const program = new Command();
 
 program
   .name('sql-magic')
-  .description('Dialect-neutral database viewer and query studio')
+  .description('High-performance, dialect-neutral database viewer and query studio')
   .version('0.1.0')
-  .argument('[target]', 'Database file path or directory', '.')
+  .argument('[target]', 'Database file path or connection string URL (postgres://, mysql://, sqlite:)')
+  .option('-u, --url <connectionString>', 'Database connection URL')
   .option('-p, --port <number>', 'Port to bind server', (val) => parseInt(val, 10), 3000)
   .option('-H, --host <address>', 'Host address to bind', '127.0.0.1')
-  .option('--readonly', 'Enforce strict read-only mode at SQLite level', false)
+  .option('--allow-write', 'Permit write/mutation operations (read-only by default)', false)
+  .option('--readonly', 'Explicitly enforce read-only mode', true)
   .option('--no-open', 'Do not automatically open the browser')
   .option('--no-watch', 'Disable file watching for database changes')
   .option('-q, --query <sql>', 'Execute headless SQL query and exit')
   .option('--format <format>', 'Output format for headless query (json, csv)', 'json')
   .action(async (targetArg, options) => {
-    const resolvedTarget = path.resolve(targetArg || '.');
+    // Determine target from flag, argument, or DATABASE_URL env
+    const rawTarget =
+      options.url ||
+      targetArg ||
+      process.env.DATABASE_URL ||
+      '.';
+
+    const isUrl = /^(postgres(ql)?|mysql|mariadb|sqlite):\/\//i.test(rawTarget);
+    const resolvedTarget = isUrl ? rawTarget : path.resolve(rawTarget);
+    const isReadOnly = !options.allowWrite;
+    const dialect = detectDialectFromUrl(resolvedTarget);
 
     // 1. Headless Query Execution Mode
     if (options.query) {
-      if (!fs.existsSync(resolvedTarget) || fs.statSync(resolvedTarget).isDirectory()) {
-        console.error(pc.red(`Error: Headless query requires a database file target. '${targetArg}' is invalid.`));
-        process.exit(1);
-      }
-
       try {
-        const adapter = new NodeSqliteAdapter(resolvedTarget, { readOnly: options.readonly });
-        await adapter.init();
+        const adapter = await createAdapter(resolvedTarget, { readOnly: isReadOnly });
         const result = await adapter.query(options.query);
         await adapter.close();
 
@@ -48,19 +61,21 @@ program
         }
         process.exit(0);
       } catch (err: unknown) {
-        console.error(pc.red(`Query failed: ${err instanceof Error ? err.message : String(err)}`));
+        console.error(pc.red(`Query execution failed: ${err instanceof Error ? err.message : String(err)}`));
         process.exit(1);
       }
     }
 
-    // 2. Directory or File Target Inspection
-    let isDirectory = false;
-    if (fs.existsSync(resolvedTarget)) {
-      isDirectory = fs.statSync(resolvedTarget).isDirectory();
-    }
-
+    // 2. Target Display & Logging with password masking
     console.log();
     console.log(pc.bold(pc.cyan('⚡ sql-magic studio v0.1.0')));
+
+    const maskedTarget = isUrl ? maskConnectionString(resolvedTarget) : resolvedTarget;
+
+    let isDirectory = false;
+    if (!isUrl && fs.existsSync(resolvedTarget)) {
+      isDirectory = fs.statSync(resolvedTarget).isDirectory();
+    }
 
     if (isDirectory) {
       const found = scanDirectoryForDatabases(resolvedTarget);
@@ -74,9 +89,11 @@ program
         }
       }
     } else {
-      console.log(pc.gray(`🗄️  Database: ${pc.white(resolvedTarget)}`));
-      if (options.readonly) {
-        console.log(pc.yellow(`🔒 Mode: Strict Read-Only`));
+      console.log(pc.gray(`🗄️  Target: ${pc.white(maskedTarget)} (${dialect})`));
+      if (isReadOnly) {
+        console.log(pc.yellow(`🔒 Mode: Read-Only (Pass --allow-write to enable write operations)`));
+      } else {
+        console.log(pc.red(`⚠️  Mode: Read-Write enabled`));
       }
     }
 
@@ -86,12 +103,12 @@ program
         port: options.port,
         host: options.host,
         targetPath: resolvedTarget,
-        readOnly: options.readonly,
+        readOnly: isReadOnly,
         watch: options.watch,
       });
 
       console.log();
-      console.log(`   ${pc.green('➜')}  ${pc.bold('Local:')}   ${pc.cyan(instance.url)}`);
+      console.log(`   ${pc.green('➜')}  ${pc.bold('Studio:')}  ${pc.cyan(instance.url)}`);
       if (instance.token) {
         console.log(`   ${pc.gray('🔑 Token:')}   ${pc.gray(instance.token)}`);
       }
@@ -106,11 +123,11 @@ program
         }
       }
 
-      console.log(pc.gray('   Press Ctrl+C to stop server'));
+      console.log(pc.gray('   Press Ctrl+C to stop studio'));
 
       // Graceful shutdown
       const shutdown = async () => {
-        console.log(pc.gray('\nStopping sql-magic server...'));
+        console.log(pc.gray('\nStopping studio...'));
         await instance.close();
         process.exit(0);
       };
@@ -118,7 +135,7 @@ program
       process.on('SIGINT', shutdown);
       process.on('SIGTERM', shutdown);
     } catch (err: unknown) {
-      console.error(pc.red(`Failed to start server: ${err instanceof Error ? err.message : String(err)}`));
+      console.error(pc.red(`Failed to start studio: ${err instanceof Error ? err.message : String(err)}`));
       process.exit(1);
     }
   });

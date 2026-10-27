@@ -22,6 +22,9 @@ interface SchemaBrowserProps {
   onInspectDdl?: (table: TableInfo) => void;
   onPragmaAction?: (cmd: string) => void;
   capabilities?: { pragma: boolean; schemas: boolean };
+  schemasList?: string[];
+  activeSchema?: string;
+  onSelectSchema?: (schema: string) => void;
 }
 
 export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
@@ -32,6 +35,9 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
   onInspectDdl,
   onPragmaAction,
   capabilities,
+  schemasList = [],
+  activeSchema = 'public',
+  onSelectSchema,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
@@ -99,6 +105,26 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* Schema / Database Selector (Postgres schemas, MySQL databases) */}
+      {capabilities?.schemas && schemasList.length > 0 && (
+        <div className="p-2 border-b border-zinc-800 bg-zinc-950/60">
+          <label className="block text-[10px] uppercase font-semibold text-zinc-500 mb-1">
+            Schema / Database
+          </label>
+          <select
+            value={activeSchema}
+            onChange={(e) => onSelectSchema && onSelectSchema(e.target.value)}
+            className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
+          >
+            {schemasList.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Search Input */}
       <div className="p-2 border-b border-zinc-800">

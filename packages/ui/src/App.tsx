@@ -42,6 +42,8 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [historyList, setHistoryList] = useState<QueryHistoryItem[]>([]);
+  const [schemasList, setSchemasList] = useState<string[]>([]);
+  const [activeSchema, setActiveSchema] = useState<string>('public');
 
   // Startup demo database
   useEffect(() => {
@@ -233,6 +235,47 @@ export default function App() {
     await executeSql(query);
   };
 
+  const handleSelectSchema = async (newSchema: string) => {
+    if (!adapter) return;
+    setActiveSchema(newSchema);
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const fresh = await adapter.getSchema(newSchema);
+      setSchema(fresh);
+      if (fresh.tables.length > 0) {
+        handleSelectTable(fresh.tables[0]);
+      } else {
+        setSelectedTable(null);
+        setQueryResult(null);
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNavigateForeignKey = async (refTable: string, refCol: string, val: unknown) => {
+    if (!adapter) return;
+    const targetTable = schema?.tables.find(
+      (t) => t.name.toLowerCase() === refTable.toLowerCase()
+    );
+    if (targetTable) {
+      setSelectedTable(targetTable);
+    }
+
+    const formattedVal =
+      val === null || val === undefined
+        ? 'NULL'
+        : typeof val === 'number'
+        ? String(val)
+        : `'${String(val).replace(/'/g, "''")}'`;
+
+    const query = `SELECT * FROM ${adapter.quoteIdent(refTable)} WHERE ${adapter.quoteIdent(refCol)} = ${formattedVal} LIMIT 50;`;
+    await executeSql(query);
+  };
+
   const runExplainPlan = async () => {
     if (!adapter || !adapter.capabilities.explain) return;
     if (!queryResult) return;
@@ -371,6 +414,9 @@ export default function App() {
             onRefresh={initSampleDatabase}
             onPragmaAction={runPragma}
             capabilities={capabilities}
+            schemasList={schemasList}
+            activeSchema={activeSchema}
+            onSelectSchema={handleSelectSchema}
           />
         )}
 
@@ -458,6 +504,8 @@ export default function App() {
               <DataGrid
                 resultSet={queryResult}
                 tableName={selectedTable?.name || 'result'}
+                foreignKeys={selectedTable?.foreignKeys}
+                onNavigateForeignKey={handleNavigateForeignKey}
                 theme={theme}
               />
             )}
