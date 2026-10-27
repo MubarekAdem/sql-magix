@@ -74,9 +74,26 @@ export const FileLoader: React.FC<FileLoaderProps> = ({ onLoad, isLoading }) => 
         const handles = await (window as any).showOpenFilePicker({
           types: [
             {
-              description: 'SQLite Databases',
+              description: 'SQLite Databases (*.db, *.sqlite, *.sqlite3, *.db3, *.s3db, *.sqlitedb, *.gpkg, *.mbtiles)',
               accept: {
-                'application/x-sqlite3': ['.db', '.sqlite', '.sqlite3'],
+                'application/x-sqlite3': [
+                  '.db',
+                  '.sqlite',
+                  '.sqlite3',
+                  '.db3',
+                  '.s3db',
+                  '.sl3',
+                  '.sqlitedb',
+                  '.gpkg',
+                  '.mbtiles',
+                ],
+                'application/vnd.sqlite3': ['.db', '.sqlite', '.sqlite3'],
+              },
+            },
+            {
+              description: 'All Files (*.*)',
+              accept: {
+                '*/*': [],
               },
             },
           ],
@@ -100,7 +117,7 @@ export const FileLoader: React.FC<FileLoaderProps> = ({ onLoad, isLoading }) => 
       <input
         ref={fileInputRef}
         type="file"
-        accept=".db,.sqlite,.sqlite3"
+        accept=".db,.sqlite,.sqlite3,.db3,.s3db,.sl3,.sqlitedb,.gpkg,.mbtiles,*"
         onChange={handleInputChange}
         className="hidden"
       />
@@ -111,7 +128,7 @@ export const FileLoader: React.FC<FileLoaderProps> = ({ onLoad, isLoading }) => 
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm disabled:opacity-50"
       >
         <Upload className="w-3.5 h-3.5" />
-        <span>Open .db</span>
+        <span>Open DB</span>
       </button>
 
       {/* Full-screen drag overlay when hovering files over viewport */}
