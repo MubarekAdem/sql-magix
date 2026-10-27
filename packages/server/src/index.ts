@@ -178,6 +178,28 @@ export function createViewerApp(options: ServerOptions = {}) {
       const cleanPath = reqPath === '/' ? '/index.html' : reqPath;
       const filePath = path.join(staticRoot, cleanPath);
 
+      // Dedicated handler for SQLite WASM binary
+      if (reqPath === '/sql-wasm.wasm') {
+        const wasmCandidates = [
+          filePath,
+          path.resolve(staticRoot, 'sql-wasm.wasm'),
+          path.resolve(__dirname, '../../../packages/ui/public/sql-wasm.wasm'),
+          path.resolve(__dirname, '../../../packages/core/node_modules/sql.js/dist/sql-wasm.wasm'),
+          path.resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+          path.resolve(process.cwd(), 'packages/ui/public/sql-wasm.wasm'),
+        ];
+        for (const wPath of wasmCandidates) {
+          if (fs.existsSync(wPath) && fs.statSync(wPath).isFile()) {
+            return new Response(fs.readFileSync(wPath), {
+              headers: {
+                'Content-Type': 'application/wasm',
+                'Cache-Control': 'public, max-age=31536000, immutable',
+              },
+            });
+          }
+        }
+      }
+
       if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
         const ext = path.extname(filePath).toLowerCase();
         const mime = MIME_MAP[ext] || 'application/octet-stream';
@@ -185,6 +207,12 @@ export function createViewerApp(options: ServerOptions = {}) {
         return new Response(fileContent, {
           headers: { 'Content-Type': mime },
         });
+      }
+
+      // Do NOT return index.html for missing static assets (.wasm, .js, .css, images)
+      const ext = path.extname(cleanPath).toLowerCase();
+      if (ext && ext !== '.html') {
+        return c.text('Not Found', 404);
       }
 
       // SPA Fallback: serve index.html

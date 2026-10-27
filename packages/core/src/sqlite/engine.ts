@@ -63,13 +63,30 @@ export class SqliteEngine implements DbAdapter {
    */
   async init(): Promise<void> {
     if (!this.SQL) {
-      this.SQL = await initSqlJs(
-        this.options.wasmUrl
-          ? {
-              locateFile: () => this.options.wasmUrl!,
-            }
-          : undefined
-      );
+      const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+
+      if (isNode && !this.options.wasmUrl) {
+        this.SQL = await initSqlJs();
+      } else {
+        const locateFile = (file: string) => {
+          if (this.options.wasmUrl) return this.options.wasmUrl;
+          return file === 'sql-wasm.wasm' ? '/sql-wasm.wasm' : file;
+        };
+
+        try {
+          this.SQL = await initSqlJs({ locateFile });
+        } catch (err: unknown) {
+          // Fallback to CDN if local WASM fetch returned HTML or failed in browser
+          if (!isNode) {
+            console.warn('Local WASM binary could not be instantiated; falling back to CDN...', err);
+            this.SQL = await initSqlJs({
+              locateFile: () => 'https://sql.js.org/dist/sql-wasm.wasm',
+            });
+          } else {
+            throw err;
+          }
+        }
+      }
     }
 
     if (this.options.buffer) {
