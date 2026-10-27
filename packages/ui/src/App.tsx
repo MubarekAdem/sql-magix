@@ -35,6 +35,8 @@ import {
   GitCompare,
   Search,
   Plus,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
@@ -54,6 +56,12 @@ import { DiffModal } from './components/DiffModal';
 import { SavedSnippetsModal } from './components/SavedSnippetsModal';
 import { PragmaToolsModal } from './components/PragmaToolsModal';
 import { AttachDatabaseModal } from './components/AttachDatabaseModal';
+import {
+  saveSessionState,
+  loadSessionState,
+  encodeShareableQueryUrl,
+  extractSharedQueryFromUrl,
+} from './utils/storage';
 
 export default function App() {
   const [adapter, setAdapter] = useState<DbAdapter | null>(null);
@@ -96,10 +104,18 @@ export default function App() {
   const [showSnippetsModal, setShowSnippetsModal] = useState<boolean>(false);
   const [showPragmaModal, setShowPragmaModal] = useState<boolean>(false);
   const [showAttachModal, setShowAttachModal] = useState<boolean>(false);
+  const [sharedCopied, setSharedCopied] = useState<boolean>(false);
 
-  // Startup demo database
+  // Startup demo database & restore session preferences
   useEffect(() => {
+    const session = loadSessionState();
+    if (session.theme) setTheme(session.theme);
     initSampleDatabase();
+
+    const sharedQuery = extractSharedQueryFromUrl();
+    if (sharedQuery) {
+      setTimeout(() => executeSql(sharedQuery), 500);
+    }
   }, []);
 
   const initSampleDatabase = async () => {
@@ -374,6 +390,22 @@ export default function App() {
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const handleShareQuery = () => {
+    const sql = historyList[0]?.sql || `SELECT * FROM ${selectedTable?.name || 'customers'} LIMIT 50;`;
+    const shareUrl = encodeShareableQueryUrl(sql);
+    navigator.clipboard.writeText(shareUrl);
+    setSharedCopied(true);
+    setTimeout(() => setSharedCopied(false), 2000);
+  };
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      saveSessionState({ theme: next });
+      return next;
+    });
   };
 
   // Phase 5 Changeset Handlers & Undo / Redo
@@ -739,11 +771,30 @@ export default function App() {
             </button>
           )}
 
+          {/* Share Query Button */}
+          <button
+            onClick={handleShareQuery}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            title="Share read-only query link (schema & query only, never data)"
+          >
+            {sharedCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Link Copied</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Share</span>
+              </>
+            )}
+          </button>
+
           <FileLoader onLoad={handleFileLoad} isLoading={isLoading} />
 
           {/* Theme Toggle */}
           <button
-            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+            onClick={handleToggleTheme}
             className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800 transition"
             title="Toggle Theme"
           >
