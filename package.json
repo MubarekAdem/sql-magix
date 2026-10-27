@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.9.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "start": "node packages/cli/dist/cli.js",
-    "dev": "pnpm --filter @sql-magic/ui dev",
-    "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
+    "start": "node scripts/start.js",
+    "dev": "node scripts/dev.js",
+    "build": "node scripts/build.js",
+    "test": "node scripts/test.js",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck"
   },
