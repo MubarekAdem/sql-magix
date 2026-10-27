@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import pc from 'picocolors';
 import open from 'open';
@@ -12,6 +13,24 @@ import { startViewer, scanDirectoryForDatabases } from 'sql-magic-server';
 dotenv.config();
 if (fs.existsSync('.env.local')) {
   dotenv.config({ path: '.env.local', override: true });
+}
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function resolveCliStaticDir(): string | undefined {
+  const candidates = [
+    path.resolve(__dirname, 'public'),
+    path.resolve(__dirname, '../dist/public'),
+    path.resolve(__dirname, '../../ui/dist'),
+    path.resolve(process.cwd(), 'packages/ui/dist'),
+    path.resolve(process.cwd(), 'packages/cli/dist/public'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && fs.existsSync(path.join(candidate, 'index.html'))) {
+      return candidate;
+    }
+  }
+  return undefined;
 }
 
 const program = new Command();
@@ -46,12 +65,20 @@ program
       }
     }
 
-    // Determine target from flag, argument, or DATABASE_URL env
-    const isFromEnv = !options.url && !targetArg && !!process.env.DATABASE_URL;
+    // Determine target from flag, argument, or DATABASE_URL/POSTGRES_URL/MYSQL_URL env
+    const envUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.MYSQL_URL;
+    const envVarName = process.env.DATABASE_URL
+      ? 'DATABASE_URL'
+      : process.env.POSTGRES_URL
+      ? 'POSTGRES_URL'
+      : process.env.MYSQL_URL
+      ? 'MYSQL_URL'
+      : null;
+    const isFromEnv = !options.url && !targetArg && !!envUrl;
     const rawTarget =
       options.url ||
       targetArg ||
-      process.env.DATABASE_URL ||
+      envUrl ||
       '.';
 
     const isUrl = /^(postgres(ql)?|mysql|mariadb|sqlite):\/\//i.test(rawTarget);
@@ -120,7 +147,7 @@ program
         }
       }
     } else {
-      const sourceLabel = isFromEnv ? pc.cyan(' [from DATABASE_URL in .env]') : '';
+      const sourceLabel = isFromEnv && envVarName ? pc.cyan(` [from ${envVarName} in .env]`) : '';
       console.log(pc.gray(`🗄️  Target: ${pc.white(maskedTarget)} (${dialect})${sourceLabel}`));
       if (isReadOnly) {
         console.log(pc.yellow(`🔒 Mode: Read-Only (Pass --allow-write to enable write operations)`));
@@ -131,12 +158,14 @@ program
 
     // 3. Start Viewer Server
     try {
+      const staticDir = resolveCliStaticDir();
       const instance = await startViewer({
         port: options.port,
         host: options.host,
         targetPath: resolvedTarget,
         readOnly: isReadOnly,
         watch: options.watch,
+        staticDir,
       });
 
       console.log();

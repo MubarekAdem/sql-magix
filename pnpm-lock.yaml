@@ -39,6 +39,9 @@ importers:
         specifier: workspace:*
         version: link:../server
     devDependencies:
+      '@sql-magic/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@types/node':
         specifier: ^22.13.5
         version: 22.20.5

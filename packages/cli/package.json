@@ -44,6 +44,7 @@
     "sql-magic-server": "workspace:*"
   },
   "devDependencies": {
+    "@sql-magic/ui": "workspace:*",
     "@types/node": "^22.13.5",
     "typescript": "^5.8.2",
     "vitest": "^3.0.7"

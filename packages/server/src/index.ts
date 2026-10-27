@@ -65,6 +65,7 @@ export function createViewerApp(options: ServerOptions = {}) {
       capabilities: options.adapter?.capabilities,
       readOnly: !!options.readOnly,
       targetPath: options.targetPath,
+      watching: !!(options as any)._watcher,
     });
   });
 
@@ -178,7 +179,23 @@ export function createViewerApp(options: ServerOptions = {}) {
   app.get('/api/events', (c) => {
     const watcher = (options as any)._watcher as DatabaseWatcher | undefined;
     if (!watcher) {
-      return c.text('No active file watcher', 404);
+      // If no file watcher is active (e.g. Postgres, MySQL, directory target, or --no-watch),
+      // return a valid quiet SSE stream so EventSource does not throw 404 and spam reconnects.
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode(': no-watcher\n\n'));
+          },
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+          },
+        }
+      );
     }
 
     return new Response(
@@ -265,6 +282,13 @@ export function createViewerApp(options: ServerOptions = {}) {
 
       return c.text('Not Found', 404);
     });
+  } else {
+    app.get('/', (c) => {
+      return c.html(
+        `<!DOCTYPE html><html><head><title>SQL Magix</title></head><body style="font-family:sans-serif;padding:2rem;">` +
+        `<h2>SQL Magix Server Running</h2><p>UI assets were not found. Please ensure the UI is built.</p></body></html>`
+      );
+    });
   }
 
   return app;
@@ -278,7 +302,12 @@ function resolveDefaultUiDir(): string | null {
     // Pre-built UI bundled alongside server dist
     path.resolve(__dirname, '../public'),
     path.resolve(__dirname, '../../ui/dist'),
+    path.resolve(__dirname, '../../cli/dist/public'),
+    // When sql-magic-server is in node_modules of sql-magix (or peer)
+    path.resolve(__dirname, '../../../dist/public'),
+    path.resolve(__dirname, '../../sql-magix/dist/public'),
     path.resolve(process.cwd(), 'packages/ui/dist'),
+    path.resolve(process.cwd(), 'packages/cli/dist/public'),
   ];
 
   for (const candidate of candidates) {

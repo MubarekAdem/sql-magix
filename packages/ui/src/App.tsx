@@ -197,8 +197,8 @@ export default function App() {
             setQueryResult(null);
           }
 
-          // Subscribe to Server-Sent Events (SSE) for file changes
-          if (typeof EventSource !== 'undefined') {
+          // Subscribe to Server-Sent Events (SSE) for file changes if watcher is active
+          if (health.watching && typeof EventSource !== 'undefined') {
             try {
               const sseUrl = token ? `/api/events?token=${encodeURIComponent(token)}` : '/api/events';
               const es = new EventSource(sseUrl);
@@ -210,6 +210,9 @@ export default function App() {
                   // Ignore transient reload errors
                 }
               });
+              es.onerror = () => {
+                es.close();
+              };
             } catch {
               // SSE not available
             }

@@ -31,10 +31,10 @@ if (pm === 'pnpm') {
 } else {
   // Topological order for npm workspaces: core -> server -> ui -> cli
   const packages = [
-    '@sql-magic/core',
-    '@sql-magic/server',
+    'sql-magic-core',
+    'sql-magic-server',
     '@sql-magic/ui',
-    'sql-magic',
+    'sql-magix',
   ];
   for (const pkg of packages) {
     console.log(`\n📦 Building ${pkg}...`);
