@@ -17,7 +17,7 @@ if (fs.existsSync('.env.local')) {
 const program = new Command();
 
 program
-  .name('sql-magic')
+  .name('sql-magix')
   .description('High-performance, dialect-neutral database viewer and query studio')
   .version('0.1.0')
   .argument('[target]', 'Database file path or connection string URL (postgres://, mysql://, sqlite:)')
