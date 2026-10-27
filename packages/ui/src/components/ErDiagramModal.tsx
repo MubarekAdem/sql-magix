@@ -1,27 +1,32 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import type { DatabaseSchema, TableInfo } from '@sql-magic/core';
 import mermaid from 'mermaid';
 import {
   X,
   ZoomIn,
   ZoomOut,
-  Maximize,
+  Maximize2,
+  Minimize2,
   Key,
   Table as TableIcon,
   Layers,
   ArrowRight,
-  Move,
   Code,
   Download,
   Copy,
   Check,
   LayoutGrid,
   Sparkles,
+  Search,
+  RotateCcw,
+  ExternalLink,
+  Shuffle,
 } from 'lucide-react';
 
 interface ErDiagramModalProps {
   schema: DatabaseSchema | null;
   selectedTable: TableInfo | null;
+  theme?: 'light' | 'dark';
   onSelectTable: (table: TableInfo) => void;
   onClose: () => void;
 }
@@ -67,16 +72,20 @@ function generateMermaidEr(schema: DatabaseSchema | null): string {
   // 2. Table Definitions with Columns & Types
   for (const table of schema.tables) {
     const tblName = sanitizeIdent(table.name);
-    lines.push(`    ${tblName} {`);
-    for (const col of table.columns) {
-      const type = sanitizeType(col.type || 'TEXT');
-      const name = sanitizeIdent(col.name);
-      let modifier = '';
-      if (col.primaryKey) modifier = ' PK';
-      else if (table.foreignKeys?.some((fk) => fk.column === col.name)) modifier = ' FK';
-      lines.push(`        ${type} ${name}${modifier}`);
+    if (table.columns.length > 0) {
+      lines.push(`    ${tblName} {`);
+      for (const col of table.columns) {
+        const type = sanitizeType(col.type || 'TEXT');
+        const name = sanitizeIdent(col.name);
+        let modifier = '';
+        if (col.primaryKey) modifier = ' PK';
+        else if (table.foreignKeys?.some((fk) => fk.column === col.name)) modifier = ' FK';
+        lines.push(`        ${type} ${name}${modifier}`);
+      }
+      lines.push(`    }`);
+    } else {
+      lines.push(`    ${tblName}`);
     }
-    lines.push(`    }`);
   }
 
   return lines.join('\n');
@@ -85,6 +94,7 @@ function generateMermaidEr(schema: DatabaseSchema | null): string {
 export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
   schema,
   selectedTable,
+  theme,
   onSelectTable,
   onClose,
 }) => {
@@ -98,99 +108,27 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
   const [svgHtml, setSvgHtml] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mermaidRef = useRef<HTMLDivElement | null>(null);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Generate Mermaid Code from schema
   const mermaidCode = useMemo(() => generateMermaidEr(schema), [schema]);
 
-  // Initial layout for Canvas view
-  useEffect(() => {
-    if (!schema) return;
-    const initialPos: Record<string, NodePosition> = {};
-    const cols = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(schema.tables.length))));
-    const xSpacing = 320;
-    const ySpacing = 280;
-
-    schema.tables.forEach((t, i) => {
-      const colIdx = i % cols;
-      const rowIdx = Math.floor(i / cols);
-      initialPos[t.name] = {
-        x: 60 + colIdx * xSpacing,
-        y: 60 + rowIdx * ySpacing,
-      };
-    });
-    setNodePositions(initialPos);
-  }, [schema]);
-
-  // Render Mermaid Diagram to SVG
-  useEffect(() => {
-    if (!mermaidCode || viewMode !== 'mermaid') return;
-
-    let isMounted = true;
-    const isDark = document.documentElement.classList.contains('dark');
-
-    try {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: isDark ? 'dark' : 'default',
-        securityLevel: 'loose',
-        er: {
-          useMaxWidth: false,
-          entityPadding: 16,
-          fontSize: 12,
-        },
-        themeVariables: isDark
-          ? {
-              darkMode: true,
-              background: 'transparent',
-              primaryColor: '#1a1f2c',
-              primaryTextColor: '#edf0f6',
-              primaryBorderColor: '#363d4e',
-              lineColor: '#6366f1',
-              secondaryColor: '#161922',
-              tertiaryColor: '#101319',
-              fontFamily: 'monospace',
-            }
-          : {
-              darkMode: false,
-              background: 'transparent',
-              primaryColor: '#ffffff',
-              primaryTextColor: '#1b202a',
-              primaryBorderColor: '#cbd5e1',
-              lineColor: '#4f46e5',
-              secondaryColor: '#f1f3f7',
-              tertiaryColor: '#f8f9fb',
-              fontFamily: 'monospace',
-            },
-      });
-
-      const uniqueId = `mermaid-er-${Math.random().toString(36).slice(2, 9)}`;
-      mermaid
-        .render(uniqueId, mermaidCode)
-        .then(({ svg }) => {
-          if (isMounted) {
-            setSvgHtml(svg);
-            setRenderError(null);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setRenderError(err instanceof Error ? err.message : String(err));
-          }
-        });
-    } catch (err: unknown) {
-      if (isMounted) {
-        setRenderError(err instanceof Error ? err.message : String(err));
-      }
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [mermaidCode, viewMode]);
-
+  // Foreign Key Relationships
   const relationships = useMemo(() => {
     if (!schema) return [];
     const rels: {
@@ -215,8 +153,159 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
     return rels;
   }, [schema]);
 
+  // Auto-arrange layout helper (topological / column arrangement)
+  const calculateAutoLayout = useCallback(
+    (tables: TableInfo[]): Record<string, NodePosition> => {
+      const positions: Record<string, NodePosition> = {};
+      if (tables.length === 0) return positions;
+
+      // Classify tables by dependency level:
+      // Level 0: Parent tables with no FKs
+      // Level 1: Tables with FKs pointing to Level 0
+      // Level 2+: Tables with FKs pointing to higher levels
+      const inDegree: Record<string, number> = {};
+      const outDegree: Record<string, number> = {};
+
+      tables.forEach((t) => {
+        inDegree[t.name] = 0;
+        outDegree[t.name] = t.foreignKeys?.length || 0;
+      });
+
+      tables.forEach((t) => {
+        t.foreignKeys?.forEach((fk) => {
+          if (inDegree[fk.referencedTable] !== undefined) {
+            inDegree[fk.referencedTable]++;
+          }
+        });
+      });
+
+      // Sort tables: parent tables (high in-degree, low out-degree) first
+      const sorted = [...tables].sort((a, b) => {
+        const diff = (inDegree[b.name] - outDegree[b.name]) - (inDegree[a.name] - outDegree[a.name]);
+        return diff !== 0 ? diff : a.name.localeCompare(b.name);
+      });
+
+      const cols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(tables.length))));
+      const colWidth = 320;
+      const rowHeight = 300;
+
+      sorted.forEach((t, i) => {
+        const colIdx = i % cols;
+        const rowIdx = Math.floor(i / cols);
+        positions[t.name] = {
+          x: 60 + colIdx * colWidth,
+          y: 60 + rowIdx * rowHeight,
+        };
+      });
+
+      return positions;
+    },
+    []
+  );
+
+  // Initialize Canvas Positions
+  useEffect(() => {
+    if (!schema?.tables) return;
+    setNodePositions(calculateAutoLayout(schema.tables));
+  }, [schema, calculateAutoLayout]);
+
+  // Determine active theme (prop or DOM attribute)
+  const isDark = useMemo(() => {
+    if (theme) return theme === 'dark';
+    return document.documentElement.classList.contains('dark');
+  }, [theme]);
+
+  // Render Mermaid Diagram with Robi's custom theme variables
+  useEffect(() => {
+    if (!mermaidCode || viewMode !== 'mermaid') return;
+
+    let isMounted = true;
+
+    try {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        er: {
+          useMaxWidth: false,
+          entityPadding: 18,
+          fontSize: 12,
+        },
+        themeVariables: isDark
+          ? {
+              darkMode: true,
+              background: 'transparent',
+              primaryColor: '#161a24',
+              primaryTextColor: '#edf0f6',
+              primaryBorderColor: '#2b3447',
+              lineColor: '#818cf8',
+              secondaryColor: '#101319',
+              tertiaryColor: '#1a1f2c',
+              mainBkg: '#161a24',
+              nodeBorder: '#2b3447',
+              textColor: '#98a0af',
+              attributeBackgroundColorOdd: '#12151d',
+              attributeBackgroundColorEven: '#171b26',
+              fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            }
+          : {
+              darkMode: false,
+              background: 'transparent',
+              primaryColor: '#ffffff',
+              primaryTextColor: '#1b202a',
+              primaryBorderColor: '#d2d8e4',
+              lineColor: '#4f46e5',
+              secondaryColor: '#f1f3f7',
+              tertiaryColor: '#f8f9fb',
+              mainBkg: '#ffffff',
+              nodeBorder: '#d2d8e4',
+              textColor: '#475569',
+              attributeBackgroundColorOdd: '#f8f9fb',
+              attributeBackgroundColorEven: '#ffffff',
+              fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            },
+      });
+
+      const uniqueId = `mermaid-er-${Math.random().toString(36).slice(2, 9)}`;
+      mermaid
+        .render(uniqueId, mermaidCode)
+        .then(({ svg }) => {
+          if (isMounted) {
+            // Strip any restrictive max-width inline styles so the SVG scales smoothly
+            const cleanSvg = svg.replace(/max-width:\s*[^;"]+;?/gi, '');
+            setSvgHtml(cleanSvg);
+            setRenderError(null);
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            setRenderError(err instanceof Error ? err.message : String(err));
+          }
+        });
+    } catch (err: unknown) {
+      if (isMounted) {
+        setRenderError(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mermaidCode, viewMode, isDark]);
+
+  // Center diagram in viewport
+  const fitToScreen = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 50, y: 50 });
+  }, []);
+
+  // Panning & dragging handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.er-table-node') || (e.target as HTMLElement).closest('button')) {
+    if (
+      (e.target as HTMLElement).closest('.er-table-card') ||
+      (e.target as HTMLElement).closest('button') ||
+      (e.target as HTMLElement).closest('input')
+    ) {
       return;
     }
     setIsPanning(true);
@@ -256,11 +345,6 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
     setZoom((prev) => Math.min(2.5, Math.max(0.3, prev * delta)));
   };
 
-  const resetView = () => {
-    setZoom(1);
-    setPan({ x: 40, y: 40 });
-  };
-
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(mermaidCode);
@@ -282,32 +366,47 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#f8f9fb] dark:bg-[#0f1218] flex flex-col font-sans select-none transition-colors duration-150">
-      {/* Top Header Toolbar */}
-      <div className="h-14 px-4 bg-white/90 dark:bg-[#141822]/95 backdrop-blur-md border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 text-indigo-500 flex items-center justify-center border border-indigo-500/20">
-            <Layers className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-[#1b202a] dark:text-white">
-                Entity-Relationship Diagram
-              </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                {schema?.tables.length || 0} tables • {relationships.length} relations
-              </span>
-            </div>
-            <span className="text-xs text-[#5f687a] dark:text-[#98a0af]">
-              Standard Crow&apos;s Foot relational schema visualization
-            </span>
-          </div>
-        </div>
+  // Filter tables by search query
+  const filteredTables = useMemo(() => {
+    if (!schema?.tables) return [];
+    if (!searchQuery.trim()) return schema.tables;
+    const q = searchQuery.toLowerCase();
+    return schema.tables.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.columns.some((c) => c.name.toLowerCase().includes(q))
+    );
+  }, [schema, searchQuery]);
 
-        {/* View Mode Switcher & Tools */}
-        <div className="flex items-center gap-3">
-          {/* Mode Switcher */}
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 font-sans select-none animate-in fade-in duration-150">
+      <div
+        className={`bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+          isFullscreen
+            ? 'fixed inset-0 rounded-none border-none max-w-none max-h-none h-full w-full'
+            : 'w-full max-w-7xl h-[88vh] rounded-2xl'
+        }`}
+      >
+        {/* Modal Header */}
+        <div className="h-14 px-5 border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between shrink-0 bg-white dark:bg-[#141822] z-20">
+          {/* Left Title & Metrics */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm text-[#1b202a] dark:text-white truncate">
+                  Entity-Relationship Diagram
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
+                  {schema?.tables.length || 0} tables • {relationships.length} relations
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Center Mode Switcher */}
           <div className="flex items-center p-1 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40]">
             <button
               onClick={() => setViewMode('mermaid')}
@@ -329,7 +428,7 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
                   ? 'bg-white dark:bg-[#222938] text-indigo-600 dark:text-indigo-300 shadow-2xs font-semibold'
                   : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
               }`}
-              title="Interactive draggable table cards"
+              title="Interactive draggable relational cards"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
               <span>Table Cards</span>
@@ -349,56 +448,75 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
             </button>
           </div>
 
-          {/* Zoom Controls (only for visual diagrams) */}
-          {viewMode !== 'code' && (
-            <div className="flex items-center p-1 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40]">
-              <button
-                onClick={() => handleZoom(0.85)}
-                className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] transition"
-                title="Zoom Out"
-              >
-                <ZoomOut className="w-4 h-4" />
-              </button>
-              <span className="px-2 text-xs font-mono text-[#5f687a] dark:text-[#98a0af]">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                onClick={() => handleZoom(1.15)}
-                className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] transition"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                onClick={resetView}
-                className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] border-l border-[#e2e6ee] dark:border-[#262e40] ml-1 transition"
-                title="Reset View"
-              >
-                <Maximize className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Copy / Export Buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleCopyCode}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition active:scale-[0.98]"
-              title="Copy Mermaid code"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Code</span>
-                </>
+          {/* Right Action Tools */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Search Box */}
+            <div className="relative hidden md:block">
+              <Search className="w-3.5 h-3.5 text-[#8c96a8] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Find table or column..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-[#e2e6ee] dark:border-[#262e40] bg-[#f8f9fb] dark:bg-[#11141c] text-[#1b202a] dark:text-[#edf0f6] placeholder-[#8c96a8] focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-40 lg:w-48 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               )}
-            </button>
+            </div>
 
+            {/* Canvas-only: Auto Arrange Button */}
+            {viewMode === 'canvas' && (
+              <button
+                onClick={() => {
+                  if (schema?.tables) {
+                    setNodePositions(calculateAutoLayout(schema.tables));
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition active:scale-[0.98]"
+                title="Automatically arrange tables by relationship hierarchy"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="hidden sm:inline">Auto Arrange</span>
+              </button>
+            )}
+
+            {/* Zoom Controls */}
+            {viewMode !== 'code' && (
+              <div className="flex items-center p-1 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40]">
+                <button
+                  onClick={() => handleZoom(0.85)}
+                  className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] transition"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="px-2 text-xs font-mono text-[#5f687a] dark:text-[#98a0af] min-w-[42px] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() => handleZoom(1.15)}
+                  className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] transition"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={fitToScreen}
+                  className="p-1.5 text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-white/[0.08] border-l border-[#e2e6ee] dark:border-[#262e40] ml-1 transition"
+                  title="Reset View"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Export SVG (Mermaid view) */}
             {viewMode === 'mermaid' && svgHtml && (
               <button
                 onClick={handleDownloadSvg}
@@ -406,235 +524,344 @@ export const ErDiagramModal: React.FC<ErDiagramModalProps> = ({
                 title="Download SVG vector file"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export SVG</span>
+                <span className="hidden sm:inline">Export SVG</span>
               </button>
             )}
+
+            {/* Copy Mermaid Code */}
+            <button
+              onClick={handleCopyCode}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-xl border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition active:scale-[0.98]"
+              title="Copy Mermaid syntax"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold hidden sm:inline">
+                    Copied!
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Copy Code</span>
+                </>
+              )}
+            </button>
+
+            {/* Maximize / Restore Toggle */}
+            <button
+              onClick={() => setIsFullscreen((prev) => !prev)}
+              className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition active:scale-[0.96]"
+              title={isFullscreen ? 'Restore Modal' : 'Maximize Fullscreen'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+
+            {/* Close Modal Button */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition active:scale-[0.96]"
+              title="Close Diagram (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] transition active:scale-[0.96]"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
-      </div>
 
-      {/* Main View Area */}
-      {viewMode === 'code' ? (
-        <div className="flex-1 overflow-auto p-6 bg-[#0c0e14] text-[#edf0f6] font-mono text-xs">
-          <div className="max-w-4xl mx-auto rounded-2xl bg-[#13161f] border border-[#222938] overflow-hidden shadow-xl">
-            <div className="px-4 py-2.5 bg-[#171b26] border-b border-[#222938] flex items-center justify-between text-[11px] text-[#8c96a8]">
-              <span>Mermaid ER Syntax (Gfm / Markdown Compatible)</span>
-              <button
-                onClick={handleCopyCode}
-                className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
-              >
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
+        {/* Empty Database State */}
+        {(!schema || schema.tables.length === 0) ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#f8f9fb] dark:bg-[#0c0e14]">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center mb-4">
+              <Layers className="w-7 h-7" />
             </div>
-            <pre className="p-4 overflow-x-auto leading-relaxed text-[#c4cad4] select-text">
-              {mermaidCode}
-            </pre>
+            <h3 className="text-base font-semibold text-[#1b202a] dark:text-white mb-1">
+              No Tables in Database
+            </h3>
+            <p className="text-xs text-[#5f687a] dark:text-[#98a0af] max-w-sm mb-5 leading-relaxed">
+              Create a new table using the Schema Designer or import tabular data from CSV/JSON to visualize relational entity relationships.
+            </p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition active:scale-[0.98]"
+            >
+              Return to Studio
+            </button>
           </div>
-        </div>
-      ) : viewMode === 'mermaid' ? (
-        /* Mermaid SVG Viewport */
-        <div
-          ref={containerRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
-          className="flex-1 overflow-hidden relative bg-[#f8f9fb] dark:bg-[#0c0e14] cursor-grab active:cursor-grabbing select-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle, rgba(140, 150, 170, 0.15) 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-          }}
-        >
-          {renderError && (
-            <div className="absolute top-4 left-4 z-30 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 font-mono">
-              Mermaid render notice: {renderError}
-            </div>
-          )}
-
-          <div
-            ref={mermaidRef}
-            className="absolute origin-top-left transition-transform duration-75 p-8"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            }}
-            dangerouslySetInnerHTML={{ __html: svgHtml }}
-          />
-
-          {!svgHtml && !renderError && (
-            <div className="h-full flex items-center justify-center text-xs text-[#8c96a8] font-mono">
-              Generating relational diagram...
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Custom Table Cards Canvas Viewport */
-        <div
-          ref={containerRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
-          className="flex-1 overflow-hidden relative bg-[#f8f9fb] dark:bg-[#0c0e14] cursor-grab active:cursor-grabbing select-none"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle, rgba(140, 150, 170, 0.15) 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-          }}
-        >
-          <div
-            className="absolute inset-0 origin-top-left transition-transform duration-75"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            }}
-          >
-            {/* SVG Connector Lines */}
-            <svg className="absolute inset-0 w-[6000px] h-[6000px] pointer-events-none z-0">
-              <defs>
-                <marker
-                  id="er-arrow"
-                  viewBox="0 0 10 10"
-                  refX="8"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto-start-reverse"
+        ) : viewMode === 'code' ? (
+          /* Mermaid Code Syntax View */
+          <div className="flex-1 overflow-auto p-6 bg-[#0c0e14] text-[#edf0f6] font-mono text-xs">
+            <div className="max-w-4xl mx-auto rounded-2xl bg-[#13161f] border border-[#222938] overflow-hidden shadow-xl">
+              <div className="px-4 py-2.5 bg-[#171b26] border-b border-[#222938] flex items-center justify-between text-[11px] text-[#8c96a8]">
+                <span>Mermaid ER Syntax (GitHub Markdown Compatible)</span>
+                <button
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300"
                 >
-                  <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1" />
-                </marker>
-              </defs>
-              {relationships.map((rel, idx) => {
-                const srcPos = nodePositions[rel.fromTable];
-                const dstPos = nodePositions[rel.toTable];
-                if (!srcPos || !dstPos) return null;
+                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <pre className="p-4 overflow-x-auto leading-relaxed text-[#c4cad4] select-text">
+                {mermaidCode}
+              </pre>
+            </div>
+          </div>
+        ) : viewMode === 'mermaid' ? (
+          /* Mermaid Standard Relational SVG Viewport */
+          <div
+            ref={containerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onWheel={handleWheel}
+            className="flex-1 overflow-hidden relative bg-[#f8f9fb] dark:bg-[#0c0e14] cursor-grab active:cursor-grabbing select-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle, rgba(140, 150, 170, 0.15) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          >
+            {renderError && (
+              <div className="absolute top-4 left-4 z-30 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 font-mono shadow-sm">
+                Mermaid render notice: {renderError}
+              </div>
+            )}
 
-                const cardWidth = 260;
-                const x1 = srcPos.x + cardWidth;
-                const y1 = srcPos.y + 45;
-                const x2 = dstPos.x;
-                const y2 = dstPos.y + 45;
+            <div
+              ref={mermaidRef}
+              className="mermaid-er-wrapper absolute origin-top-left transition-transform duration-75 p-12"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              }}
+              dangerouslySetInnerHTML={{ __html: svgHtml }}
+            />
 
-                const dx = Math.abs(x2 - x1) * 0.5;
-                const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+            {!svgHtml && !renderError && (
+              <div className="h-full flex items-center justify-center text-xs text-[#8c96a8] font-mono">
+                Generating relational Crow&apos;s Foot diagram...
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Interactive Table Cards Viewport */
+          <div
+            ref={containerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onWheel={handleWheel}
+            className="flex-1 overflow-hidden relative bg-[#f8f9fb] dark:bg-[#0c0e14] cursor-grab active:cursor-grabbing select-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle, rgba(140, 150, 170, 0.15) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          >
+            <div
+              className="absolute inset-0 origin-top-left transition-transform duration-75"
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              }}
+            >
+              {/* Dynamic Smart Bezier Connector Lines */}
+              <svg className="absolute inset-0 w-[8000px] h-[8000px] pointer-events-none z-0">
+                <defs>
+                  <marker
+                    id="er-arrow"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#6366f1" />
+                  </marker>
+                </defs>
+                {relationships.map((rel, idx) => {
+                  const srcPos = nodePositions[rel.fromTable];
+                  const dstPos = nodePositions[rel.toTable];
+                  if (!srcPos || !dstPos) return null;
+
+                  const cardWidth = 260;
+                  let x1: number;
+                  let y1: number;
+                  let x2: number;
+                  let y2: number;
+
+                  // Smart edge anchor detection
+                  if (srcPos.x + cardWidth < dstPos.x) {
+                    // Source table is left of destination
+                    x1 = srcPos.x + cardWidth;
+                    y1 = srcPos.y + 45;
+                    x2 = dstPos.x;
+                    y2 = dstPos.y + 45;
+                  } else if (dstPos.x + cardWidth < srcPos.x) {
+                    // Destination table is left of source
+                    x1 = srcPos.x;
+                    y1 = srcPos.y + 45;
+                    x2 = dstPos.x + cardWidth;
+                    y2 = dstPos.y + 45;
+                  } else {
+                    // Vertically stacked
+                    x1 = srcPos.x + cardWidth / 2;
+                    y1 = srcPos.y < dstPos.y ? srcPos.y + 120 : srcPos.y;
+                    x2 = dstPos.x + cardWidth / 2;
+                    y2 = srcPos.y < dstPos.y ? dstPos.y : dstPos.y + 120;
+                  }
+
+                  const dx = Math.abs(x2 - x1) * 0.5;
+                  const dy = Math.abs(y2 - y1) * 0.5;
+                  const c1x = x1 + (x2 > x1 ? dx : -dx);
+                  const c2x = x2 + (x2 > x1 ? -dx : dx);
+                  const pathData = `M ${x1} ${y1} C ${c1x} ${y1}, ${c2x} ${y2}, ${x2} ${y2}`;
+
+                  const midX = (x1 + x2) / 2;
+                  const midY = (y1 + y2) / 2;
+                  const label = `${rel.fromCol} ➜ ${rel.toCol}`;
+                  const labelWidth = Math.max(60, label.length * 6.5 + 16);
+
+                  return (
+                    <g key={idx} className="group">
+                      <path
+                        d={pathData}
+                        fill="none"
+                        stroke="#6366f1"
+                        strokeWidth="2"
+                        strokeDasharray="4 3"
+                        markerEnd="url(#er-arrow)"
+                        className="transition hover:stroke-indigo-400 hover:stroke-[3]"
+                      />
+                      {/* Label background badge */}
+                      <rect
+                        x={midX - labelWidth / 2}
+                        y={midY - 9}
+                        width={labelWidth}
+                        height="18"
+                        rx="5"
+                        className="fill-white dark:fill-[#151922] stroke-[#e2e6ee] dark:stroke-[#262e40] stroke-1"
+                      />
+                      <text
+                        x={midX}
+                        y={midY + 3.5}
+                        fill="#6366f1"
+                        fontSize="10"
+                        textAnchor="middle"
+                        className="font-mono select-none font-medium"
+                      >
+                        {label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* Table Cards */}
+              {(schema?.tables || []).map((t) => {
+                const pos = nodePositions[t.name] || { x: 50, y: 50 };
+                const isSelected = selectedTable?.name === t.name;
+                const isFiltered =
+                  searchQuery.trim() !== '' &&
+                  !filteredTables.some((ft) => ft.name === t.name);
 
                 return (
-                  <g key={idx} className="group">
-                    <path
-                      d={pathData}
-                      fill="none"
-                      stroke="#6366f1"
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                      markerEnd="url(#er-arrow)"
-                      className="transition hover:stroke-indigo-400 hover:stroke-[3]"
-                    />
-                    <text
-                      x={(x1 + x2) / 2}
-                      y={(y1 + y2) / 2 - 6}
-                      fill="#6366f1"
-                      fontSize="11"
-                      textAnchor="middle"
-                      className="font-mono select-none font-medium"
-                    >
-                      {rel.fromCol} ➜ {rel.toCol}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-
-            {/* Table Cards */}
-            {(schema?.tables || []).map((t) => {
-              const pos = nodePositions[t.name] || { x: 50, y: 50 };
-              const isSelected = selectedTable?.name === t.name;
-
-              return (
-                <div
-                  key={t.name}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setDraggedNode(t.name);
-                  }}
-                  style={{
-                    transform: `translate(${pos.x}px, ${pos.y}px)`,
-                  }}
-                  className={`er-table-node absolute w-64 rounded-2xl bg-white dark:bg-[#151922] border shadow-lg dark:shadow-none z-10 cursor-move transition-all duration-150 ${
-                    isSelected
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/30'
-                      : 'border-[#e2e6ee] dark:border-[#222938] hover:border-indigo-400/60'
-                  }`}
-                >
-                  {/* Table Header */}
                   <div
-                    onClick={() => {
-                      onSelectTable(t);
-                      onClose();
+                    key={t.name}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setDraggedNode(t.name);
                     }}
-                    className="p-3 bg-[#f8f9fb] dark:bg-[#101319] rounded-t-2xl border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition"
-                    title="Click to open this table in data grid"
+                    style={{
+                      transform: `translate(${pos.x}px, ${pos.y}px)`,
+                    }}
+                    className={`er-table-card absolute w-64 rounded-2xl bg-white dark:bg-[#151922] border z-10 cursor-move transition-all duration-150 ${
+                      isFiltered ? 'opacity-25 grayscale pointer-events-none' : 'opacity-100'
+                    } ${
+                      isSelected
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-md'
+                        : 'border-[#e2e6ee] dark:border-[#222938] hover:border-indigo-400/60 shadow-xs dark:shadow-none'
+                    }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <TableIcon className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <span className="font-semibold text-xs text-[#1b202a] dark:text-white truncate font-mono">
-                        {t.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-[#8c96a8] font-mono">
-                      {t.columns.length} cols
-                    </span>
-                  </div>
-
-                  {/* Columns List */}
-                  <div className="p-2 space-y-0.5 max-h-56 overflow-y-auto font-mono text-[11px]">
-                    {t.columns.map((c) => {
-                      const isFk = t.foreignKeys?.some((fk) => fk.column === c.name);
-                      return (
-                        <div
-                          key={c.name}
-                          className="flex items-center justify-between px-2.5 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.04]"
+                    {/* Table Header */}
+                    <div
+                      className="p-3 bg-[#f8f9fb] dark:bg-[#101319] rounded-t-2xl border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <TableIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="font-semibold text-xs text-[#1b202a] dark:text-white truncate font-mono">
+                          {t.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] text-[#8c96a8] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5">
+                          {t.columns.length} cols
+                        </span>
+                        <button
+                          onClick={() => {
+                            onSelectTable(t);
+                            onClose();
+                          }}
+                          className="p-1 rounded-md text-[#8c96a8] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-black/5 dark:hover:bg-white/5 transition"
+                          title="Open table in data grid"
                         >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {c.primaryKey && (
-                              <span title="Primary Key">
-                                <Key className="w-3 h-3 text-amber-500 shrink-0" />
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Columns List */}
+                    <div className="p-2 space-y-0.5 max-h-56 overflow-y-auto font-mono text-[11px]">
+                      {t.columns.map((c) => {
+                        const isFk = t.foreignKeys?.some((fk) => fk.column === c.name);
+                        return (
+                          <div
+                            key={c.name}
+                            className="flex items-center justify-between px-2.5 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.04]"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {c.primaryKey && (
+                                <span
+                                  title="Primary Key"
+                                  className="w-4 h-4 rounded flex items-center justify-center bg-amber-500/10 text-amber-500 shrink-0"
+                                >
+                                  <Key className="w-2.5 h-2.5" />
+                                </span>
+                              )}
+                              {isFk && !c.primaryKey && (
+                                <span
+                                  title="Foreign Key"
+                                  className="w-4 h-4 rounded flex items-center justify-center bg-indigo-500/10 text-indigo-500 shrink-0"
+                                >
+                                  <ArrowRight className="w-2.5 h-2.5" />
+                                </span>
+                              )}
+                              <span
+                                className={`truncate ${
+                                  c.primaryKey
+                                    ? 'text-amber-600 dark:text-amber-300 font-semibold'
+                                    : isFk
+                                    ? 'text-indigo-600 dark:text-indigo-300 font-medium'
+                                    : 'text-[#3f4756] dark:text-[#c4cad4]'
+                                }`}
+                              >
+                                {c.name}
                               </span>
-                            )}
-                            {isFk && !c.primaryKey && (
-                              <span title="Foreign Key">
-                                <ArrowRight className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
-                              </span>
-                            )}
-                            <span
-                              className={`truncate ${
-                                c.primaryKey
-                                  ? 'text-amber-600 dark:text-amber-300 font-semibold'
-                                  : isFk
-                                  ? 'text-indigo-600 dark:text-indigo-300'
-                                  : 'text-[#3f4756] dark:text-[#c4cad4]'
-                              }`}
-                            >
-                              {c.name}
+                            </div>
+                            <span className="text-[10px] text-[#8c96a8] shrink-0 ml-2">
+                              {c.type}
                             </span>
                           </div>
-                          <span className="text-[10px] text-[#8c96a8]">{c.type}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

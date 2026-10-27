@@ -113,3 +113,40 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(140, 150, 170, 0.38);
 }
+
+/* Mermaid ER Diagram Robi-compliant styling */
+.mermaid-er-wrapper {
+  user-select: none;
+}
+.mermaid-er-wrapper svg {
+  max-width: none !important;
+  height: auto !important;
+  display: block;
+}
+.mermaid-er-wrapper .er.entityBox {
+  rx: 8px !important;
+  ry: 8px !important;
+  stroke-width: 1.5px !important;
+}
+.mermaid-er-wrapper .er.entityLabel {
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+.mermaid-er-wrapper .er.attributeBoxOdd,
+.mermaid-er-wrapper .er.attributeBoxEven {
+  stroke-width: 0.5px !important;
+}
+.mermaid-er-wrapper .er.attributeLabelOdd,
+.mermaid-er-wrapper .er.attributeLabelEven {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11px !important;
+}
+.mermaid-er-wrapper .er.relationshipLine {
+  stroke-width: 2px !important;
+}
+.mermaid-er-wrapper .er.relationshipLabel {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+}

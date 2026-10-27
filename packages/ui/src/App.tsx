@@ -1278,6 +1278,7 @@ export default function App() {
         <ErDiagramModal
           schema={schema}
           selectedTable={selectedTable}
+          theme={theme}
           onSelectTable={handleSelectTable}
           onClose={() => setShowErDiagram(false)}
         />
