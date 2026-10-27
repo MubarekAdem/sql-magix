@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Robi's Design System: Low-saturation HSL, WCAG AAA contrast, 4px grid */
   /* Light Theme (No pure black/white to prevent halation) */

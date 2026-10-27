@@ -115,8 +115,10 @@ export default function App() {
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
     }
   }, [theme]);
 
@@ -1288,7 +1290,7 @@ export default function App() {
           onOpenExplain={runExplainPlan}
           onOpenPragma={() => setShowPragmaModal(true)}
           onOpenAiAssistant={() => setShowAiAssistant(true)}
-          onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+          onToggleTheme={handleToggleTheme}
           onClose={() => setShowCommandPalette(false)}
         />
       )}
