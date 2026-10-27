@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type {
   DbAdapter,
   DatabaseSchema,
@@ -124,6 +124,7 @@ export default function App() {
     }
   });
   const [isDraggingResizer, setIsDraggingResizer] = useState<boolean>(false);
+  const [activeEditorQuery, setActiveEditorQuery] = useState<string | null>(null);
 
   // Apply dark mode class to <html> for Tailwind v4 and CSS variables
   useEffect(() => {
@@ -322,7 +323,9 @@ export default function App() {
     if (res.schema.tables.length > 0) {
       const firstTbl = res.schema.tables[0];
       setSelectedTable(firstTbl);
-      const queryRes = await adapter.query(`SELECT * FROM ${adapter.quoteIdent(firstTbl.name)} LIMIT 100;`);
+      const queryStr = `SELECT * FROM ${adapter.quoteIdent(firstTbl.name)} LIMIT 100;`;
+      setActiveEditorQuery(queryStr);
+      const queryRes = await adapter.query(queryStr);
       setQueryResult(queryRes);
     } else {
       setSelectedTable(null);
@@ -425,7 +428,26 @@ export default function App() {
     if (!adapter) return;
     setSelectedTable(table);
     const query = `SELECT * FROM ${adapter.quoteIdent(table.name)} LIMIT 100;`;
+    setActiveEditorQuery(query);
     await executeSql(query);
+  };
+
+  // Detect if query error is due to PostgreSQL unquoted identifier case-folding
+  const postgresCaseMismatch = useMemo(() => {
+    if (!errorMessage || !schema?.tables) return null;
+    const match = errorMessage.match(/relation "([^"]+)" does not exist/i);
+    if (!match) return null;
+    const missing = match[1].toLowerCase();
+    const found = schema.tables.find(
+      (t) => t.name.toLowerCase() === missing && t.name !== match[1]
+    );
+    return found ? found.name : null;
+  }, [errorMessage, schema]);
+
+  const handleFixQuoting = (tableName: string) => {
+    const fixedQuery = `SELECT * FROM "${tableName}" LIMIT 50;`;
+    setActiveEditorQuery(fixedQuery);
+    executeSql(fixedQuery);
   };
 
   const handleSelectSchema = async (newSchema: string) => {
@@ -993,6 +1015,7 @@ export default function App() {
             historyList={historyList}
             theme={theme}
             height={editorHeight}
+            externalQuery={activeEditorQuery}
             onToggleCollapse={handleToggleEditorCollapse}
           />
 
@@ -1014,19 +1037,36 @@ export default function App() {
             />
           </div>
 
-          {/* Error Banner */}
+          {/* Error Banner with Smart PostgreSQL Case-Sensitivity Helper */}
           {errorMessage && (
-            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between font-mono animate-in fade-in">
-              <div className="flex items-center gap-2 truncate">
-                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span className="truncate">{errorMessage}</span>
+            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono animate-in fade-in">
+              <div className="flex items-start sm:items-center gap-2 min-w-0">
+                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                  <span className="truncate">{errorMessage}</span>
+                  {postgresCaseMismatch && (
+                    <span className="text-[11px] text-rose-700 dark:text-rose-300 font-sans">
+                      💡 PostgreSQL folds unquoted names to lowercase. Enclose in double quotes:
+                    </span>
+                  )}
+                </div>
               </div>
-              <button
-                onClick={() => setErrorMessage(null)}
-                className="text-xs text-rose-600 dark:text-rose-400 hover:underline px-2 py-0.5"
-              >
-                Dismiss
-              </button>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto font-sans">
+                {postgresCaseMismatch && (
+                  <button
+                    onClick={() => handleFixQuoting(postgresCaseMismatch)}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition active:scale-[0.98]"
+                  >
+                    Auto-quote & Run (&quot;{postgresCaseMismatch}&quot;)
+                  </button>
+                )}
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:underline px-2 py-0.5"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           )}
 

@@ -32,6 +32,7 @@ interface SqlEditorProps {
   historyList: QueryHistoryItem[];
   theme?: 'dark' | 'light';
   height?: number;
+  externalQuery?: string | null;
   onToggleCollapse?: () => void;
 }
 
@@ -90,10 +91,17 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   historyList,
   theme = 'light',
   height = 160,
+  externalQuery,
   onToggleCollapse,
 }) => {
   const [tabs, setTabs] = useState<SqlEditorTab[]>([
-    { id: 'tab-1', title: 'Query 1', query: 'SELECT * FROM customers LIMIT 50;' },
+    {
+      id: 'tab-1',
+      title: 'Query 1',
+      query: schema?.tables?.[0]
+        ? `SELECT * FROM "${schema.tables[0].name}" LIMIT 50;`
+        : 'SELECT * FROM customers LIMIT 50;',
+    },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-1');
   const [showHistory, setShowHistory] = useState<boolean>(false);
@@ -104,25 +112,49 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
   const isCollapsed = height <= 42;
 
-  // Schema-aware SQL autocomplete provider
+  // Sync externalQuery when table selected or auto-fix triggered
+  useEffect(() => {
+    if (!externalQuery) return;
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabId ? { ...t, query: externalQuery } : t))
+    );
+    if (editorViewRef.current) {
+      const currentDoc = editorViewRef.current.state.doc.toString();
+      if (currentDoc !== externalQuery) {
+        editorViewRef.current.dispatch({
+          changes: {
+            from: 0,
+            to: currentDoc.length,
+            insert: externalQuery,
+          },
+        });
+      }
+    }
+  }, [externalQuery, activeTabId]);
+
+  // Schema-aware SQL autocomplete provider with PostgreSQL/MySQL smart identifier quoting
   const schemaCompletionSource = (context: CompletionContext): CompletionResult | null => {
     const word = context.matchBefore(/\w*/);
     if (!word || (word.from === word.to && !context.explicit)) return null;
 
     const options: any[] = [];
 
-    // Add tables and views
+    // Add tables and views with smart quotes for mixed-case / uppercase identifiers
     if (schema) {
       for (const tbl of schema.tables) {
+        const needsQuotes = /[A-Z]|\s|[^a-z0-9_]/.test(tbl.name);
         options.push({
           label: tbl.name,
+          apply: needsQuotes ? `"${tbl.name}"` : tbl.name,
           type: 'class',
           detail: `table (${tbl.columns.length} cols)`,
           boost: 2,
         });
         for (const col of tbl.columns) {
+          const colNeedsQuotes = /[A-Z]|\s|[^a-z0-9_]/.test(col.name);
           options.push({
             label: col.name,
+            apply: colNeedsQuotes ? `"${col.name}"` : col.name,
             type: 'property',
             detail: `${col.type} [${tbl.name}]`,
             boost: 1,
@@ -131,8 +163,10 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       }
 
       for (const view of schema.views) {
+        const vNeedsQuotes = /[A-Z]|\s|[^a-z0-9_]/.test(view.name);
         options.push({
           label: view.name,
+          apply: vNeedsQuotes ? `"${view.name}"` : view.name,
           type: 'interface',
           detail: 'view',
           boost: 1.5,
