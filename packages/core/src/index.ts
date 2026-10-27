@@ -7,3 +7,7 @@ export * from './browser/index.js';
 export * from './changeset/index.js';
 export * from './import/infer.js';
 export * from './ddl/generator.js';
+export * from './analysis/stats.js';
+export * from './analysis/diff.js';
+export * from './analysis/indexAdvisor.js';
+export * from './ai/prompt.js';

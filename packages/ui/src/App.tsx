@@ -30,6 +30,11 @@ import {
   PlusCircle,
   Clock,
   Layers,
+  Sparkles,
+  Bookmark,
+  GitCompare,
+  Search,
+  Plus,
 } from 'lucide-react';
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
@@ -38,6 +43,17 @@ import { FileLoader } from './components/FileLoader';
 import { PendingChangesPanel } from './components/PendingChangesPanel';
 import { TableDesignerModal } from './components/TableDesignerModal';
 import { ImportModal } from './components/ImportModal';
+import { ErDiagramModal } from './components/ErDiagramModal';
+import { ColumnStatsModal } from './components/ColumnStatsModal';
+import { QuickChartModal } from './components/QuickChartModal';
+import { RowDetailModal } from './components/RowDetailModal';
+import { ExplainVisualizer } from './components/ExplainVisualizer';
+import { CommandPalette } from './components/CommandPalette';
+import { AiAssistantModal } from './components/AiAssistantModal';
+import { DiffModal } from './components/DiffModal';
+import { SavedSnippetsModal } from './components/SavedSnippetsModal';
+import { PragmaToolsModal } from './components/PragmaToolsModal';
+import { AttachDatabaseModal } from './components/AttachDatabaseModal';
 
 export default function App() {
   const [adapter, setAdapter] = useState<DbAdapter | null>(null);
@@ -65,6 +81,21 @@ export default function App() {
   const [designerInitialMode, setDesignerInitialMode] = useState<'table' | 'index' | 'alter' | 'drop'>('table');
   const [designerInitialTable, setDesignerInitialTable] = useState<string | undefined>(undefined);
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
+
+  // Phase 6: Exploration and Power Features Modals State
+  const [showErDiagram, setShowErDiagram] = useState<boolean>(false);
+  const [showColumnStats, setShowColumnStats] = useState<boolean>(false);
+  const [statsColumn, setStatsColumn] = useState<string | undefined>(undefined);
+  const [showQuickChart, setShowQuickChart] = useState<boolean>(false);
+  const [showRowDetail, setShowRowDetail] = useState<boolean>(false);
+  const [detailRow, setDetailRow] = useState<Record<string, unknown> | null>(null);
+  const [detailRowIndex, setDetailRowIndex] = useState<number>(0);
+  const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
+  const [showAiAssistant, setShowAiAssistant] = useState<boolean>(false);
+  const [showDiffModal, setShowDiffModal] = useState<boolean>(false);
+  const [showSnippetsModal, setShowSnippetsModal] = useState<boolean>(false);
+  const [showPragmaModal, setShowPragmaModal] = useState<boolean>(false);
+  const [showAttachModal, setShowAttachModal] = useState<boolean>(false);
 
   // Startup demo database
   useEffect(() => {
@@ -371,9 +402,15 @@ export default function App() {
     setChanges(next);
   }, [redoStack, changes]);
 
-  // Global Undo / Redo Keyboard Shortcuts
+  // Global Keyboard Shortcuts (Undo/Redo & Command Palette Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+        return;
+      }
+
       if (
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA' ||
@@ -381,6 +418,7 @@ export default function App() {
       ) {
         return;
       }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) {
           e.preventDefault();
@@ -567,7 +605,7 @@ export default function App() {
       } font-sans`}
     >
       {/* Top Header Bar */}
-      <header className="flex items-center justify-between px-4 py-2.5 bg-zinc-900 border-b border-zinc-800 shrink-0">
+      <header className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -598,7 +636,7 @@ export default function App() {
                 )}
               </div>
               <div className="text-xs text-zinc-400 flex items-center gap-2 font-mono">
-                <span className="truncate max-w-[200px]" title={dbName}>
+                <span className="truncate max-w-[180px]" title={dbName}>
                   {dbName}
                 </span>
                 <span>•</span>
@@ -608,8 +646,52 @@ export default function App() {
           </div>
         </div>
 
+        {/* Global Command Palette Search Pill */}
+        <button
+          onClick={() => setShowCommandPalette(true)}
+          className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition w-64 justify-between"
+        >
+          <div className="flex items-center gap-1.5 text-xs">
+            <Search className="w-3.5 h-3.5" />
+            <span>Search or command...</span>
+          </div>
+          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-500">
+            Ctrl+K
+          </span>
+        </button>
+
         {/* Dynamic Capability Badges & Controls */}
         <div className="flex items-center gap-2">
+          {/* ER Diagram Button */}
+          <button
+            onClick={() => setShowErDiagram(true)}
+            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
+            title="Open Interactive ER Diagram"
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <span>ER Diagram</span>
+          </button>
+
+          {/* AI Text-to-SQL Assistant */}
+          <button
+            onClick={() => setShowAiAssistant(true)}
+            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-800/60 flex items-center gap-1.5 transition"
+            title="AI Text-to-SQL Assistant"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>AI Assistant</span>
+          </button>
+
+          {/* Snippets Button */}
+          <button
+            onClick={() => setShowSnippetsModal(true)}
+            className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
+            title="Saved SQL Recipes & Snippets"
+          >
+            <Bookmark className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Snippets</span>
+          </button>
+
           {/* Schema Designer Button */}
           <button
             onClick={() => {
@@ -620,7 +702,7 @@ export default function App() {
             className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
             title="Open Visual Schema Designer"
           >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <Table className="w-3.5 h-3.5 text-emerald-400" />
             <span>Designer</span>
           </button>
 
@@ -630,18 +712,19 @@ export default function App() {
             className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
             title="Import CSV or JSON data"
           >
-            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+            <Upload className="w-3.5 h-3.5 text-teal-400" />
             <span>Import</span>
           </button>
 
-          {capabilities?.explain && (
+          {/* Attach secondary SQLite database */}
+          {adapter?.dialect === 'sqlite' && (
             <button
-              onClick={runExplainPlan}
-              className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 flex items-center gap-1.5 transition"
-              title="Inspect execution plan"
+              onClick={() => setShowAttachModal(true)}
+              className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 flex items-center gap-1 transition"
+              title="Attach secondary database"
             >
-              <Activity className="w-3.5 h-3.5 text-violet-400" />
-              <span>EXPLAIN</span>
+              <Database className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Attach</span>
             </button>
           )}
 
@@ -678,7 +761,7 @@ export default function App() {
             selectedTable={selectedTable}
             onSelectTable={handleSelectTable}
             onRefresh={initSampleDatabase}
-            onPragmaAction={runPragma}
+            onPragmaAction={() => setShowPragmaModal(true)}
             capabilities={capabilities}
             schemasList={schemasList}
             activeSchema={activeSchema}
@@ -738,7 +821,10 @@ export default function App() {
 
               {capabilities?.explain && (
                 <button
-                  onClick={() => setActiveTab('explain')}
+                  onClick={() => {
+                    runExplainPlan();
+                    setActiveTab('explain');
+                  }}
                   className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
                     activeTab === 'explain'
                       ? 'border-indigo-500 text-indigo-400'
@@ -751,14 +837,10 @@ export default function App() {
 
               {capabilities?.pragma && (
                 <button
-                  onClick={() => setActiveTab('pragma')}
-                  className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
-                    activeTab === 'pragma'
-                      ? 'border-indigo-500 text-indigo-400'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                  }`}
+                  onClick={() => setShowPragmaModal(true)}
+                  className="py-2 px-3 text-xs font-medium border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition"
                 >
-                  PRAGMA Output
+                  PRAGMA Diagnostics
                 </button>
               )}
             </div>
@@ -791,6 +873,17 @@ export default function App() {
                 canRedo={redoStack.length > 0}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
+                onOpenColumnStats={(col) => {
+                  setStatsColumn(col);
+                  setShowColumnStats(true);
+                }}
+                onOpenChart={() => setShowQuickChart(true)}
+                onOpenDiff={() => setShowDiffModal(true)}
+                onOpenRowDetail={(row, idx) => {
+                  setDetailRow(row);
+                  setDetailRowIndex(idx);
+                  setShowRowDetail(true);
+                }}
               />
             )}
 
@@ -925,51 +1018,18 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'explain' && explainPlan && (
-              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-4">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-violet-400" />
-                  <h3 className="text-sm font-semibold text-white">Execution Plan Hierarchy</h3>
-                </div>
-                {explainPlan.text && (
-                  <pre className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                    {explainPlan.text}
-                  </pre>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'pragma' && pragmaResult && (
-              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-4">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-semibold text-white">PRAGMA Output</h3>
-                </div>
-                <div className="overflow-auto border border-zinc-800 rounded-lg">
-                  <table className="w-full text-left border-collapse font-mono text-xs">
-                    <thead>
-                      <tr className="bg-zinc-900 border-b border-zinc-800">
-                        {pragmaResult.columns.map((col, idx) => (
-                          <th key={idx} className="px-3 py-2 text-zinc-300 font-semibold">
-                            {col.name}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800">
-                      {pragmaResult.rows.map((row, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-zinc-900/40">
-                          {pragmaResult.columns.map((col, cIdx) => (
-                            <td key={cIdx} className="px-3 py-1.5 text-zinc-200">
-                              {String((row as any)[col.name])}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            {/* EXPLAIN Query Plan Graphical Flow Visualizer */}
+            {activeTab === 'explain' && explainPlan && adapter && (
+              <ExplainVisualizer
+                plan={explainPlan}
+                dialect={adapter.dialect}
+                querySql={`SELECT * FROM ${selectedTable?.name || 'customers'};`}
+                onExecuteCreateIndex={async (sql) => {
+                  await executeSql(sql);
+                  const fresh = await adapter.getSchema(activeSchema);
+                  setSchema(fresh);
+                }}
+              />
             )}
           </div>
         </main>
@@ -1007,6 +1067,112 @@ export default function App() {
           onExecuteImport={handleExecuteImport}
           onClose={() => setShowImportModal(false)}
           isReadOnly={isReadOnly}
+        />
+      )}
+
+      {/* Phase 6 Modals */}
+      {showErDiagram && (
+        <ErDiagramModal
+          schema={schema}
+          selectedTable={selectedTable}
+          onSelectTable={handleSelectTable}
+          onClose={() => setShowErDiagram(false)}
+        />
+      )}
+
+      {showColumnStats && queryResult && (
+        <ColumnStatsModal
+          resultSet={queryResult}
+          tableInfo={selectedTable}
+          initialColumn={statsColumn}
+          onClose={() => setShowColumnStats(false)}
+        />
+      )}
+
+      {showQuickChart && queryResult && (
+        <QuickChartModal
+          resultSet={queryResult}
+          onClose={() => setShowQuickChart(false)}
+        />
+      )}
+
+      {showRowDetail && detailRow && (
+        <RowDetailModal
+          row={detailRow}
+          rowIndex={detailRowIndex}
+          totalRows={queryResult?.rowCount || 0}
+          tableName={selectedTable?.name || 'result'}
+          onPrevRow={() => {
+            if (queryResult && detailRowIndex > 0) {
+              setDetailRowIndex((i) => i - 1);
+              setDetailRow(queryResult.rows[detailRowIndex - 1]);
+            }
+          }}
+          onNextRow={() => {
+            if (queryResult && detailRowIndex < queryResult.rows.length - 1) {
+              setDetailRowIndex((i) => i + 1);
+              setDetailRow(queryResult.rows[detailRowIndex + 1]);
+            }
+          }}
+          onClose={() => setShowRowDetail(false)}
+        />
+      )}
+
+      {showCommandPalette && (
+        <CommandPalette
+          schema={schema}
+          onSelectTable={handleSelectTable}
+          onOpenErDiagram={() => setShowErDiagram(true)}
+          onOpenDesigner={() => setShowTableDesigner(true)}
+          onOpenImport={() => setShowImportModal(true)}
+          onExportDb={handleExportDatabase}
+          onOpenExplain={runExplainPlan}
+          onOpenPragma={() => setShowPragmaModal(true)}
+          onOpenAiAssistant={() => setShowAiAssistant(true)}
+          onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+          onClose={() => setShowCommandPalette(false)}
+        />
+      )}
+
+      {showAiAssistant && adapter && (
+        <AiAssistantModal
+          schema={schema}
+          dialect={adapter.dialect}
+          selectedTable={selectedTable?.name}
+          onApplySql={(sql) => executeSql(sql)}
+          onClose={() => setShowAiAssistant(false)}
+        />
+      )}
+
+      {showDiffModal && queryResult && (
+        <DiffModal
+          currentResultSet={queryResult}
+          onClose={() => setShowDiffModal(false)}
+        />
+      )}
+
+      {showSnippetsModal && (
+        <SavedSnippetsModal
+          onInsertSql={(sql) => executeSql(sql)}
+          onClose={() => setShowSnippetsModal(false)}
+        />
+      )}
+
+      {showPragmaModal && adapter && (
+        <PragmaToolsModal
+          adapter={adapter}
+          onClose={() => setShowPragmaModal(false)}
+        />
+      )}
+
+      {showAttachModal && adapter && (
+        <AttachDatabaseModal
+          adapter={adapter}
+          onRefreshSchema={async () => {
+            const fresh = await adapter.getSchema();
+            setSchema(fresh);
+          }}
+          onClose={() => setShowAttachModal(false)}
         />
       )}
     </div>

@@ -28,6 +28,9 @@ import {
   Redo2,
   Clock,
   Sparkles,
+  BarChart2,
+  GitCompare,
+  FileSearch,
 } from 'lucide-react';
 import {
   exportToCsv,
@@ -56,6 +59,10 @@ interface DataGridProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  onOpenColumnStats?: (column: string) => void;
+  onOpenChart?: () => void;
+  onOpenRowDetail?: (row: Record<string, unknown>, index: number) => void;
+  onOpenDiff?: () => void;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -83,6 +90,10 @@ export const DataGrid: React.FC<DataGridProps> = ({
   canRedo = false,
   onUndo,
   onRedo,
+  onOpenColumnStats,
+  onOpenChart,
+  onOpenRowDetail,
+  onOpenDiff,
 }) => {
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -455,6 +466,30 @@ export const DataGrid: React.FC<DataGridProps> = ({
 
         {/* Right: Column Picker & Exporter & Row Counts */}
         <div className="flex items-center gap-2">
+          {/* Quick Chart */}
+          {onOpenChart && (
+            <button
+              onClick={onOpenChart}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white font-sans transition"
+              title="Visualize query results"
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Chart</span>
+            </button>
+          )}
+
+          {/* Diff */}
+          {onOpenDiff && (
+            <button
+              onClick={onOpenDiff}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white font-sans transition"
+              title="Compare query results diff"
+            >
+              <GitCompare className="w-3.5 h-3.5 text-amber-400" />
+              <span>Diff</span>
+            </button>
+          )}
+
           <span className="text-[11px] text-zinc-400 font-sans">
             Showing <strong className="text-zinc-200">{processedRows.length}</strong> of{' '}
             <strong className="text-zinc-200">{resultSet.rowCount}</strong> rows
@@ -595,9 +630,23 @@ export const DataGrid: React.FC<DataGridProps> = ({
                       className="flex items-center justify-between cursor-pointer"
                       onClick={() => toggleSort(col.name)}
                     >
-                      <span className="truncate pr-1" title={col.name}>
-                        {col.name}
-                      </span>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="truncate pr-1" title={col.name}>
+                          {col.name}
+                        </span>
+                        {onOpenColumnStats && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenColumnStats(col.name);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-500 hover:text-indigo-400 hover:bg-zinc-800 transition"
+                            title={`View statistics for ${col.name}`}
+                          >
+                            <BarChart2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                       <div className="flex items-center text-zinc-500 group-hover:text-zinc-300">
                         {isSorted && sort.direction === 'asc' ? (
                           <ArrowUp className="w-3.5 h-3.5 text-indigo-400" />
@@ -846,6 +895,21 @@ export const DataGrid: React.FC<DataGridProps> = ({
             </pre>
           </div>
           <div className="flex items-center gap-2 pt-1">
+            {/* Record Detail & BLOB Modal button */}
+            {onOpenRowDetail && (
+              <button
+                onClick={() => {
+                  const r = processedRows[selectedCell.row];
+                  if (r) onOpenRowDetail(r, selectedCell.row);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+                title="Open full record detail & BLOB inspector"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Detail</span>
+              </button>
+            )}
+
             {/* Quick Edit button */}
             {!isReadOnly && onCellEdit && (
               <button
