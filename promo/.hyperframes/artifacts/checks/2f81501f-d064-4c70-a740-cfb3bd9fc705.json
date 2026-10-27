@@ -1,0 +1,843 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 13,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#scene1\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#scene1",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 0s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#scene2\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#scene2",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 4.5s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#scene3\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#scene3",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 9.5s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#scene4\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#scene4",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 15s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#scene5\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#scene5",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 20.5s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "composition_file_too_large",
+        "severity": "warning",
+        "message": "This HTML composition file has 736 lines. Smaller sub-compositions are easier to read, iterate on, and diff.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Split coherent scenes or layers into separate .html files under compositions/, then mount them from the parent with data-composition-src so each file stays small enough to inspect, revise, and validate independently."
+      },
+      {
+        "code": "composition_heavy_overlay_count_high",
+        "severity": "warning",
+        "message": "This composition has 27 elements carrying \"heavy overlay\" CSS (filter:blur, radial-gradient, or clip-path). Field signal: a composition with ~40 such elements (including opacity:0 / visibility:hidden ones) captures solid-black for the first ~half of the render, recovering near the end. Reproduces identically via drawElement, forced screenshot capture, and snapshot, so the capture layer itself is the offender (not encoder/mux). Independent of duration. Presence alone matters; only display:none elements are excluded here.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Split coherent scenes / transitions into separate .html files under compositions/ and concat the pieces (FFmpeg or the runtime's slideshow) so each capture only sees a small subset of heavy overlays at once. Even hidden overlays (opacity:0 / visibility:hidden) contribute: either remove truly unused ones from the source or scope them into their own per-transition sub-composition. If an overlay is genuinely inert for the whole clip, use display:none so it never enters the render tree. Field ref ts=1784040753 (#hyperframes-cli-feedback)."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene1\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene1",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene1\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene2\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene2",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene2\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene3\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene3",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene3\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene4\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene4",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene4\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene5\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene5",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene5\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"scene6\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#scene6",
+        "dataAttributes": {},
+        "sourceFile": "E:\\mubarek_backup\\mubarek\\my\\sql-magic\\promo\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"scene6\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 30,
+    "samples": [
+      1.667,
+      5,
+      8.333,
+      11.667,
+      15,
+      18.333,
+      21.667,
+      25,
+      28.333
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 1,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 3.87:1; WCAG AA requires 4.5:1.",
+        "text": "~",
+        "fg": "rgb(100,116,139)",
+        "bg": "rgb(14,20,32)",
+        "ratio": 3.87,
+        "requiredRatio": 4.5,
+        "suggestedColor": "rgb(112,127,148)",
+        "large": false,
+        "selector": "div > div:nth-of-type(8) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 591,
+          "y": 625.796875,
+          "width": 10.8125,
+          "height": 32.390625
+        },
+        "time": 8.333,
+        "times": [
+          8.333
+        ]
+      }
+    ],
+    "enabled": true,
+    "samples": [
+      1.667,
+      8.333,
+      15,
+      21.667,
+      28.333
+    ],
+    "checked": 52,
+    "passed": 51
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 2,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "film_silent",
+        "severity": "warning",
+        "message": "This 30 s film has no sound source (no <audio>, no <video> with sound): add a music bed and sounds on the visible actions unless the person asked for silence; see references/sound.md.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0
+      },
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and 57 text elements stay under it for 0.5 s or more, the smallest \"1,000,000 ROWS\" at 10 px: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "1,000,000 ROWS",
+        "selector": "#s3StudioWindow > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 496.51,
+          "y": 333.82,
+          "width": 82.91,
+          "height": 12.83
+        },
+        "time": 10,
+        "times": [
+          0,
+          0,
+          0.125,
+          0.625,
+          0.625,
+          0.75,
+          0.75,
+          1,
+          1,
+          4.625,
+          5.25,
+          7,
+          7,
+          7,
+          9.625,
+          9.625,
+          9.625,
+          9.625,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          12.125,
+          12.125,
+          12.125,
+          12.125,
+          12.25,
+          12.25,
+          12.25,
+          15.125,
+          15.125,
+          15.125,
+          20.625,
+          20.625,
+          20.625,
+          21,
+          21,
+          21.125,
+          21.125,
+          21.25,
+          21.25,
+          22,
+          22.125,
+          22.25,
+          25.75,
+          26.125,
+          26.125,
+          26.125,
+          26.75,
+          26.75
+        ],
+        "fontPx": 9.87,
+        "floorPx": 28,
+        "seconds": 5,
+        "elements": [
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2)",
+            "text": "1,000,000 ROWS",
+            "fontPx": 9.87,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "span.top-brand-tag",
+            "text": "v1.0.0",
+            "fontPx": 10,
+            "time": 0,
+            "seconds": 30
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(1) > div:nth-of-type(2)",
+            "text": "SELECT id, name, email, plan, revenue FROM customers LIMIT 1000000;",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(1)",
+            "text": "● 1.2ms",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "# ID",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2)",
+            "text": "NAME",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(3)",
+            "text": "EMAIL",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(4)",
+            "text": "PLAN",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(5)",
+            "text": "REVENUE",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(6)",
+            "text": "STATUS",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(7)",
+            "text": "UPDATED",
+            "fontPx": 11.84,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2)",
+            "text": "Atomic commit ready",
+            "fontPx": 12,
+            "time": 12.125,
+            "seconds": 2.875
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "Discard (Esc)",
+            "fontPx": 12,
+            "time": 12.125,
+            "seconds": 2.875
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Commit Changes (⌘S)",
+            "fontPx": 12,
+            "time": 12.125,
+            "seconds": 2.875
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(2) > span:nth-of-type(1)",
+            "text": "- revenue: $12,000.00",
+            "fontPx": 12,
+            "time": 12.25,
+            "seconds": 2.75
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(2) > span:nth-of-type(2)",
+            "text": "+ revenue: $18,500.00",
+            "fontPx": 12,
+            "time": 12.25,
+            "seconds": 2.75
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(2) > span:nth-of-type(3)",
+            "text": "WHERE id = 1",
+            "fontPx": 12,
+            "time": 12.25,
+            "seconds": 2.75
+          },
+          {
+            "selector": "#s5EngineMysql > div:nth-of-type(3)",
+            "text": "Production pools & schema inspection",
+            "fontPx": 12.3,
+            "time": 21.25,
+            "seconds": 4.25
+          },
+          {
+            "selector": "#s5EnginePostgres > div:nth-of-type(3)",
+            "text": "Smart case-quoting, schemas & clusters",
+            "fontPx": 12.45,
+            "time": 21.125,
+            "seconds": 4.375
+          },
+          {
+            "selector": "#s6CommandBox > span:nth-of-type(3)",
+            "text": "ONE CLICK",
+            "fontPx": 12.45,
+            "time": 26.125,
+            "seconds": 3.875
+          },
+          {
+            "selector": "#s5EngineSqlite > div:nth-of-type(3)",
+            "text": "Local files & zero-server drag-and-drop",
+            "fontPx": 12.81,
+            "time": 21,
+            "seconds": 4.5
+          },
+          {
+            "selector": "#s3StudioWindow > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "customers • SQLite WASM",
+            "fontPx": 12.83,
+            "time": 10,
+            "seconds": 5
+          },
+          {
+            "selector": "#s3DiffDrawer > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "● STAGED MUTATIONS (1 PENDING)",
+            "fontPx": 13,
+            "time": 12.125,
+            "seconds": 2.875
+          },
+          {
+            "selector": "#s5Badges > span:nth-of-type(1)",
+            "text": "✓ PRAGMA Diagnostics Suite",
+            "fontPx": 13,
+            "time": 22,
+            "seconds": 3.5
+          },
+          {
+            "selector": "#s5Badges > span:nth-of-type(2)",
+            "text": "✓ Privacy-First AI SQL Assistant",
+            "fontPx": 13,
+            "time": 22.125,
+            "seconds": 3.375
+          },
+          {
+            "selector": "#s5Badges > span:nth-of-type(3)",
+            "text": "✓ EXPLAIN Execution Plan & Index Advisor",
+            "fontPx": 13,
+            "time": 22.25,
+            "seconds": 3.25
+          },
+          {
+            "selector": "#scene2 > div:nth-of-type(1)",
+            "text": "✦ Introducing The Future",
+            "fontPx": 13.33,
+            "time": 4.625,
+            "seconds": 4.875
+          },
+          {
+            "selector": "#scene3 > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+            "text": "⚡ Blazing Speed & Accuracy",
+            "fontPx": 13.66,
+            "time": 9.625,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene3 > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "60 FPS Virtual Scroll",
+            "fontPx": 13.66,
+            "time": 9.625,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene3 > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Inline Cell Editing",
+            "fontPx": 13.66,
+            "time": 9.625,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene3 > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3)",
+            "text": "Transactional Commits",
+            "fontPx": 13.66,
+            "time": 9.625,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene1 > div:nth-of-type(1)",
+            "text": "The Database Tool Problem",
+            "fontPx": 13.73,
+            "time": 0.125,
+            "seconds": 4.375
+          },
+          {
+            "selector": "#scene4 > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1)",
+            "text": "✦ Relational Intelligence",
+            "fontPx": 13.79,
+            "time": 15.125,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene4 > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "Live Schema Translation",
+            "fontPx": 13.79,
+            "time": 15.125,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#scene4 > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Vector SVG Export",
+            "fontPx": 13.79,
+            "time": 15.125,
+            "seconds": 5.375
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Heavy cold starts & Java lags",
+            "fontPx": 14,
+            "time": 0.625,
+            "seconds": 3.875
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Consumes your dev machine",
+            "fontPx": 14,
+            "time": 0.75,
+            "seconds": 3.75
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(2)",
+            "text": "Paid licenses & driver chaos",
+            "fontPx": 14,
+            "time": 1,
+            "seconds": 3.5
+          },
+          {
+            "selector": "#scene5 > div:nth-of-type(1)",
+            "text": "⚡ Universal Multi-Dialect Core",
+            "fontPx": 14,
+            "time": 20.625,
+            "seconds": 4.875
+          },
+          {
+            "selector": "#s2Output > div:nth-of-type(1)",
+            "text": "◇ Zero install required • Bundled standalone binary",
+            "fontPx": 14.78,
+            "time": 7,
+            "seconds": 2.5
+          },
+          {
+            "selector": "#s2Output > div:nth-of-type(2)",
+            "text": "◇ Auto-detected SQLite file & .env DATABASE_URL",
+            "fontPx": 14.78,
+            "time": 7,
+            "seconds": 2.5
+          },
+          {
+            "selector": "#s2Output > div:nth-of-type(3)",
+            "text": "➜ Studio running at: http://localhost:3000/?token=8e9f2a (42ms startup)",
+            "fontPx": 14.78,
+            "time": 7,
+            "seconds": 2.5
+          },
+          {
+            "selector": "#s2Command",
+            "text": "npx sql-magic ./app.db",
+            "fontPx": 17.73,
+            "time": 5.25,
+            "seconds": 4.25
+          },
+          {
+            "selector": "#s6Links > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "github.com/mubarek/sql-magic",
+            "fontPx": 18,
+            "time": 26.75,
+            "seconds": 3.25
+          },
+          {
+            "selector": "#s6Links > div:nth-of-type(2) > span:nth-of-type(2)",
+            "text": "Star on GitHub • Free & Open Source",
+            "fontPx": 18,
+            "time": 26.75,
+            "seconds": 3.25
+          },
+          {
+            "selector": "span.top-brand-text",
+            "text": "sql-magic",
+            "fontPx": 20,
+            "time": 0,
+            "seconds": 30
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "15-Second Startup",
+            "fontPx": 20,
+            "time": 0.625,
+            "seconds": 3.875
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "2.5 GB RAM Hog",
+            "fontPx": 20,
+            "time": 0.75,
+            "seconds": 3.75
+          },
+          {
+            "selector": "#s1Cards > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1)",
+            "text": "Complex Setup",
+            "fontPx": 20,
+            "time": 1,
+            "seconds": 3.5
+          },
+          {
+            "selector": "#s5EngineMysql > div:nth-of-type(2)",
+            "text": "MySQL / MariaDB",
+            "fontPx": 20.82,
+            "time": 21.25,
+            "seconds": 4.25
+          },
+          {
+            "selector": "#s5EnginePostgres > div:nth-of-type(2)",
+            "text": "PostgreSQL",
+            "fontPx": 21.07,
+            "time": 21.125,
+            "seconds": 4.375
+          },
+          {
+            "selector": "#s6CommandBox > span:nth-of-type(1)",
+            "text": "$",
+            "fontPx": 21.07,
+            "time": 26.125,
+            "seconds": 3.875
+          },
+          {
+            "selector": "#s5EngineSqlite > div:nth-of-type(2)",
+            "text": "SQLite WASM",
+            "fontPx": 21.67,
+            "time": 21,
+            "seconds": 4.5
+          },
+          {
+            "selector": "#scene5 > p:nth-of-type(1)",
+            "text": "Auto-reads from .env or switch live in the UI.",
+            "fontPx": 24,
+            "time": 20.625,
+            "seconds": 4.875
+          },
+          {
+            "selector": "#scene5 > p:nth-of-type(1) > code:nth-of-type(1)",
+            "text": "DATABASE_URL",
+            "fontPx": 24,
+            "time": 20.625,
+            "seconds": 4.875
+          },
+          {
+            "selector": "#s6CommandBox > span:nth-of-type(2)",
+            "text": "npx sql-magic",
+            "fontPx": 24.9,
+            "time": 26.125,
+            "seconds": 3.875
+          },
+          {
+            "selector": "#scene6 > p:nth-of-type(1)",
+            "text": "The database studio you will actually love using.",
+            "fontPx": 25.02,
+            "time": 25.75,
+            "seconds": 4.25
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 240
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 1,
+    "findings": [
+      {
+        "code": "audio_none",
+        "severity": "info",
+        "message": "The film has no sound: no clip in it plays audio.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0
+      }
+    ]
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}
