@@ -78,7 +78,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dbName, setDbName] = useState<string>('sample_store.sqlite');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [historyList, setHistoryList] = useState<QueryHistoryItem[]>([]);
   const [schemasList, setSchemasList] = useState<string[]>([]);

@@ -78,7 +78,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   foreignKeys = [],
   primaryKeys = [],
   onNavigateForeignKey,
-  theme = 'dark',
+  theme = 'light',
   isReadOnly = false,
   onCellEdit,
   onAddRow,

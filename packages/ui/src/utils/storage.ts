@@ -33,7 +33,7 @@ export function loadSessionState(): PersistedSession {
   }
 
   return {
-    theme: 'dark',
+    theme: 'light',
     recentFiles: [],
     savedQueries: [],
     activeSchema: 'public',

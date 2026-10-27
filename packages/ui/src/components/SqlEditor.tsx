@@ -36,7 +36,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   onExecute,
   isLoading,
   historyList,
-  theme = 'dark',
+  theme = 'light',
 }) => {
   const [tabs, setTabs] = useState<SqlEditorTab[]>([
     { id: 'tab-1', title: 'Query 1', query: 'SELECT * FROM customers LIMIT 50;' },
