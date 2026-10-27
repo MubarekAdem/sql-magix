@@ -1,6 +1,6 @@
 {
   "name": "sql-magic-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core database adapter engine and schema introspection for sql-magic",
   "type": "module",
   "main": "./dist/index.js",

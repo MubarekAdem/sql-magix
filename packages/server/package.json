@@ -1,6 +1,6 @@
 {
   "name": "sql-magic-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight Hono backend server and SSE live watcher for sql-magic",
   "type": "module",
   "main": "./dist/index.js",

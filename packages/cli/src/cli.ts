@@ -19,7 +19,7 @@ const program = new Command();
 program
   .name('sql-magix')
   .description('High-performance, dialect-neutral database viewer and query studio')
-  .version('0.1.0')
+  .version('0.1.1')
   .argument('[target]', 'Database file path or connection string URL (postgres://, mysql://, sqlite:)')
   .option('-u, --url <connectionString>', 'Database connection URL')
   .option('-p, --port <number>', 'Port to bind server', (val) => parseInt(val, 10), 3000)
