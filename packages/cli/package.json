@@ -1,9 +1,30 @@
 {
   "name": "sql-magic",
   "version": "0.1.0",
+  "description": "High-performance, dialect-neutral database viewer and query studio for SQLite, PostgreSQL, and MySQL",
   "type": "module",
   "bin": {
     "sql-magic": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "sql",
+    "database",
+    "sqlite",
+    "postgres",
+    "postgresql",
+    "mysql",
+    "database-viewer",
+    "gui",
+    "query-studio",
+    "er-diagram"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MubarekAdem/sql-magix.git"
   },
   "scripts": {
     "build": "tsc -b && node copy-ui.js",

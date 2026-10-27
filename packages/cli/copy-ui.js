@@ -7,6 +7,9 @@ const sourceDir = path.resolve(__dirname, '../ui/dist');
 const targetDir = path.resolve(__dirname, 'dist/public');
 
 if (fs.existsSync(sourceDir)) {
+  if (fs.existsSync(targetDir)) {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  }
   fs.cpSync(sourceDir, targetDir, { recursive: true });
   console.log('✓ Bundled pre-built UI into CLI package dist/public');
 } else {
