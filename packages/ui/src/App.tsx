@@ -41,6 +41,7 @@ import {
   Wrench,
   AlertCircle,
   CheckCircle2,
+  Server,
 } from 'lucide-react';
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
@@ -60,6 +61,7 @@ import { DiffModal } from './components/DiffModal';
 import { SavedSnippetsModal } from './components/SavedSnippetsModal';
 import { PragmaToolsModal } from './components/PragmaToolsModal';
 import { AttachDatabaseModal } from './components/AttachDatabaseModal';
+import { ConnectDatabaseModal } from './components/ConnectDatabaseModal';
 import {
   saveSessionState,
   loadSessionState,
@@ -109,6 +111,7 @@ export default function App() {
   const [showSnippetsModal, setShowSnippetsModal] = useState<boolean>(false);
   const [showPragmaModal, setShowPragmaModal] = useState<boolean>(false);
   const [showAttachModal, setShowAttachModal] = useState<boolean>(false);
+  const [showConnectModal, setShowConnectModal] = useState<boolean>(false);
   const [sharedCopied, setSharedCopied] = useState<boolean>(false);
 
   // Apply dark mode class to <html> for Tailwind v4 and CSS variables
@@ -286,6 +289,35 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDynamicConnect = async (url: string, readOnly: boolean) => {
+    if (!(adapter instanceof HttpAdapter)) {
+      throw new Error('Connecting to a live server database requires starting sql-magic in server mode.');
+    }
+    const res = await adapter.connectDatabase(url, readOnly);
+    setSchema(res.schema);
+
+    let displayName = `${res.dialect}_database`;
+    if (res.targetPath) {
+      const parts = res.targetPath.replace(/\\/g, '/').split('/');
+      displayName = parts[parts.length - 1] || res.targetPath;
+    }
+    setDbName(displayName);
+    setChanges([]);
+    setUndoStack([]);
+    setRedoStack([]);
+
+    if (res.schema.tables.length > 0) {
+      const firstTbl = res.schema.tables[0];
+      setSelectedTable(firstTbl);
+      const queryRes = await adapter.query(`SELECT * FROM ${adapter.quoteIdent(firstTbl.name)} LIMIT 100;`);
+      setQueryResult(queryRes);
+    } else {
+      setSelectedTable(null);
+      setQueryResult(null);
+    }
+    return res;
   };
 
   const executeSql = useCallback(
@@ -852,6 +884,16 @@ export default function App() {
             )}
           </button>
 
+          {/* Connect Database Button */}
+          <button
+            onClick={() => setShowConnectModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#1b202a] dark:text-[#edf0f6] hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition-all duration-150 active:scale-[0.98]"
+            title="Connect PostgreSQL, MySQL, or server database"
+          >
+            <Server className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Connect DB</span>
+          </button>
+
           {/* File Picker */}
           <FileLoader onLoad={handleFileLoad} isLoading={isLoading} />
 
@@ -1334,6 +1376,14 @@ export default function App() {
             setSchema(fresh);
           }}
           onClose={() => setShowAttachModal(false)}
+        />
+      )}
+
+      {showConnectModal && (
+        <ConnectDatabaseModal
+          isServerMode={adapter instanceof HttpAdapter}
+          onConnect={handleDynamicConnect}
+          onClose={() => setShowConnectModal(false)}
         />
       )}
     </div>

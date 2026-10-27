@@ -91,6 +91,44 @@ export function createViewerApp(options: ServerOptions = {}) {
     }
   });
 
+  // 3.2 Switch or connect database dynamically
+  app.post('/api/connect', async (c) => {
+    try {
+      const { url, readOnly } = await c.req.json<{ url: string; readOnly?: boolean }>();
+      if (!url || typeof url !== 'string') {
+        return c.json({ error: 'Database connection URL or file path is required' }, 400);
+      }
+
+      const isReadOnly = readOnly !== undefined ? !!readOnly : !!options.readOnly;
+      const newAdapter = await createAdapter(url, { readOnly: isReadOnly });
+
+      if (options.adapter) {
+        try {
+          await options.adapter.close();
+        } catch {
+          // Ignore close error on previous adapter
+        }
+      }
+
+      options.adapter = newAdapter;
+      options.targetPath = url;
+      options.readOnly = isReadOnly;
+
+      const schema = await newAdapter.getSchema();
+      return c.json({
+        status: 'ok',
+        dialect: newAdapter.dialect,
+        capabilities: newAdapter.capabilities,
+        targetPath: url,
+        readOnly: isReadOnly,
+        schema,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ error: `Connection failed: ${msg}` }, 500);
+    }
+  });
+
   // 4. Schema introspection
   app.get('/api/schema', async (c) => {
     if (!options.adapter) {

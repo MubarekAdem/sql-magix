@@ -60,6 +60,31 @@ export class HttpAdapter implements DbAdapter {
     return data.schemas || ['main'];
   }
 
+  async connectDatabase(url: string, readOnly?: boolean): Promise<{
+    dialect: Dialect;
+    capabilities: DbCapabilities;
+    targetPath: string;
+    schema: DatabaseSchema;
+  }> {
+    const res = await fetch(`${this.baseUrl}/api/connect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getHeaders(),
+      },
+      body: JSON.stringify({ url, readOnly }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || `Failed to connect to database (${res.status})`);
+    }
+
+    (this as any).dialect = data.dialect;
+    this.capabilities = data.capabilities;
+    return data;
+  }
+
   async getSchema(schemaName?: string): Promise<DatabaseSchema> {
     const url = schemaName
       ? `${this.baseUrl}/api/schema?schema=${encodeURIComponent(schemaName)}`

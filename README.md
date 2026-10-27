@@ -14,7 +14,7 @@
 
 ### 1. Instant CLI (Zero Install)
 
-Run `sql-magic` directly against any local database file or directory:
+Run `sql-magic` directly against any local database file, directory, or connection URL:
 
 ```bash
 # Explore a local SQLite file
@@ -33,11 +33,39 @@ npx sql-magic mysql://root:secret@127.0.0.1:3306/ecommerce
 npx sql-magic -q "SELECT id, name, price FROM products LIMIT 5;" ./store.db --format json
 ```
 
-### 2. Browser-Only Mode (Zero Server, Zero Uploads)
+### 2. Auto-Detect `.env` Connection (`DATABASE_URL`)
+
+Place your database connection string in your project's `.env` or `.env.local`:
+
+```bash
+# .env
+DATABASE_URL=postgres://user:password@localhost:5432/my_database
+# or
+POSTGRES_URL=postgres://user:password@localhost:5432/my_database
+# or
+MYSQL_URL=mysql://root:secret@127.0.0.1:3306/ecommerce
+```
+
+Then simply start `sql-magic` without any arguments—it automatically detects and loads the connection:
+
+```bash
+npx sql-magic
+# or in the monorepo:
+pnpm start
+```
+
+### 3. Switch Databases Directly in the UI ("Connect DB")
+
+When running in Server mode, you can connect or switch to any database on the fly without restarting:
+1. Click the **Connect DB** button in the top navigation bar.
+2. Enter your connection string (or select from PostgreSQL, MySQL, or local SQLite presets).
+3. Choose Read-Only or Read-Write mode and click **Connect**. The studio instantly switches databases and reloads the schema.
+
+### 4. Browser-Only Mode (Zero Server, Zero Uploads)
 
 Drag-and-drop any `.sqlite`, `.db`, or `.sqlite3` file directly into the browser. Files **never leave your machine**—all queries run client-side using SQLite WASM in a dedicated Web Worker.
 
-### 3. Docker Container
+### 5. Docker Container
 
 ```bash
 docker run --rm -it -p 3000:3000 -v ./data:/data sql-magic /data/app.db
@@ -65,14 +93,16 @@ docker run --rm -it -p 3000:3000 -v ./data:/data sql-magic /data/app.db
 - **CSV & JSON Import:** Upload tabular data with automated dialect-aware type inference (`inferColumnType`) and batch transactional imports.
 
 ### 🔬 Exploration & Power Features
-- **Interactive ER Diagram:** Zoomable, draggable canvas mapping tables and foreign key relationships with cubic bezier curves.
+- **Mermaid Relational ER Diagram:** Automatic translation of tables and foreign key constraints into standard Crow's Foot ER diagrams (`||--o{`). Switch seamlessly between the rendered interactive SVG, interactive Table Cards, and raw Mermaid markdown code. Features 1-click SVG download and clipboard copying.
+- **SQLite PRAGMA Diagnostic Suite:** Redesigned 2-column split-pane layout featuring instant one-click execution for `integrity_check`, `foreign_key_check`, `quick_check`, and `VACUUM`. Displays real-time execution timing with sticky results table.
+- **Robi-Compliant Light & Dark Theming:** Clean, accessible 4px-system UI design default to high-contrast white mode (`#ffffff` canvas, subtle slate borders, `#4361ee` indigo accents) with persistent dark-mode toggle (`Ctrl+Shift+L`).
+- **Dynamic In-UI Database Switcher:** Switch between SQLite files, PostgreSQL clusters, and MySQL databases directly from the UI header without restarting the dev server.
 - **Column Statistics & Profiler:** Instant null counts, distinct value ratios, averages, and numeric distribution histograms.
 - **Quick Results Charts:** 1-click SVG data visualizations (Bar, Line, Area, Donut/Pie, Scatter).
 - **Record Inspector:** Expanded record drawer with collapsible syntax-highlighted JSON viewer and 16-byte hexadecimal memory dump for BLOBs.
 - **EXPLAIN Plan & Index Advisor:** Visual execution tree showing scan costs and automatically recommending `CREATE INDEX` statements to eliminate sequential scans.
 - **Global Command Palette:** Spotlight search modal accessible via `Ctrl+K` or `Cmd+K`.
 - **Privacy-Preserving AI Text-to-SQL:** Generate queries from plain English using only table schema DDL—table row data is never transmitted.
-- **SQLite PRAGMA Diagnostic Suite:** 1-click execution for `integrity_check`, `foreign_key_check`, `quick_check`, and `VACUUM`.
 - **Multi-Database ATTACH:** Manage secondary database attachments for cross-database querying.
 - **Shareable Query Links:** 1-click URL copy containing query parameters without exposing confidential data.
 
@@ -123,7 +153,13 @@ pnpm test
 # Build all monorepo packages
 pnpm build
 
-# Start UI development server
+# Start Studio Server (auto-reads DATABASE_URL from .env)
+pnpm start
+
+# Or start Server and UI together in development mode
+pnpm dev:all
+
+# Or start standalone UI development server (Browser SQLite WASM mode)
 pnpm --filter @sql-magic/ui dev
 ```
 
