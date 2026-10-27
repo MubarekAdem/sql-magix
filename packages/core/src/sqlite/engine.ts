@@ -39,6 +39,49 @@ export const SQLITE_CAPABILITIES: DbCapabilities = {
   streaming: false,
 };
 
+let cachedSqlJsPromise: Promise<SqlJsStatic> | null = null;
+
+/**
+ * Retrieves or initializes the shared SqlJsStatic factory.
+ * Caches the compiled WebAssembly instance across all SqliteEngine connections.
+ */
+export async function getSqlJsInstance(wasmUrl?: string): Promise<SqlJsStatic> {
+  if (cachedSqlJsPromise) {
+    return cachedSqlJsPromise;
+  }
+
+  const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+
+  if (isNode && !wasmUrl) {
+    cachedSqlJsPromise = initSqlJs();
+    return cachedSqlJsPromise;
+  }
+
+  const locateFile = (file: string) => {
+    if (wasmUrl) return wasmUrl;
+    // Route any requested wasm binary (including sql-wasm-browser.wasm) to /sql-wasm.wasm
+    if (file.endsWith('.wasm')) return '/sql-wasm.wasm';
+    return file;
+  };
+
+  cachedSqlJsPromise = initSqlJs({ locateFile }).catch(async (err: unknown) => {
+    if (!isNode) {
+      console.warn('Local WASM binary could not be instantiated; falling back to CDN...', err);
+      return initSqlJs({
+        locateFile: () => 'https://sql.js.org/dist/sql-wasm.wasm',
+      });
+    }
+    cachedSqlJsPromise = null;
+    throw err;
+  });
+
+  return cachedSqlJsPromise;
+}
+
+export function resetSqlJsCache(): void {
+  cachedSqlJsPromise = null;
+}
+
 /**
  * Core SQLite Engine that operates on sql.js Database instance.
  * Used both directly (in Node/tests) and inside Web Workers (in browser).
@@ -63,30 +106,7 @@ export class SqliteEngine implements DbAdapter {
    */
   async init(): Promise<void> {
     if (!this.SQL) {
-      const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
-
-      if (isNode && !this.options.wasmUrl) {
-        this.SQL = await initSqlJs();
-      } else {
-        const locateFile = (file: string) => {
-          if (this.options.wasmUrl) return this.options.wasmUrl;
-          return file === 'sql-wasm.wasm' ? '/sql-wasm.wasm' : file;
-        };
-
-        try {
-          this.SQL = await initSqlJs({ locateFile });
-        } catch (err: unknown) {
-          // Fallback to CDN if local WASM fetch returned HTML or failed in browser
-          if (!isNode) {
-            console.warn('Local WASM binary could not be instantiated; falling back to CDN...', err);
-            this.SQL = await initSqlJs({
-              locateFile: () => 'https://sql.js.org/dist/sql-wasm.wasm',
-            });
-          } else {
-            throw err;
-          }
-        }
-      }
+      this.SQL = await getSqlJsInstance(this.options.wasmUrl);
     }
 
     if (this.options.buffer) {

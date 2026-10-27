@@ -15,11 +15,13 @@ if (!fs.existsSync(destDir)) {
 }
 
 const dest = path.resolve(destDir, 'sql-wasm.wasm');
+const destBrowser = path.resolve(destDir, 'sql-wasm-browser.wasm');
 let found = false;
 for (const cand of candidates) {
   if (fs.existsSync(cand)) {
     fs.copyFileSync(cand, dest);
-    console.log(`✓ Copied sql-wasm.wasm (${fs.statSync(dest).size} bytes) to packages/ui/public/`);
+    fs.copyFileSync(cand, destBrowser);
+    console.log(`✓ Copied sql-wasm.wasm and sql-wasm-browser.wasm (${fs.statSync(dest).size} bytes) to packages/ui/public/`);
     found = true;
     break;
   }

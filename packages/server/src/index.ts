@@ -179,11 +179,13 @@ export function createViewerApp(options: ServerOptions = {}) {
       const filePath = path.join(staticRoot, cleanPath);
 
       // Dedicated handler for SQLite WASM binary
-      if (reqPath === '/sql-wasm.wasm') {
+      if (reqPath === '/sql-wasm.wasm' || reqPath === '/sql-wasm-browser.wasm') {
         const wasmCandidates = [
           filePath,
           path.resolve(staticRoot, 'sql-wasm.wasm'),
+          path.resolve(staticRoot, 'sql-wasm-browser.wasm'),
           path.resolve(__dirname, '../../../packages/ui/public/sql-wasm.wasm'),
+          path.resolve(__dirname, '../../../packages/ui/public/sql-wasm-browser.wasm'),
           path.resolve(__dirname, '../../../packages/core/node_modules/sql.js/dist/sql-wasm.wasm'),
           path.resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
           path.resolve(process.cwd(), 'packages/ui/public/sql-wasm.wasm'),
