@@ -12,3 +12,4 @@ export * from './analysis/stats.js';
 export * from './analysis/diff.js';
 export * from './analysis/indexAdvisor.js';
 export * from './ai/prompt.js';
+export * from './sample.js';

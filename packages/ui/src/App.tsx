@@ -10,7 +10,7 @@ import type {
   InsertRowChange,
   DeleteRowChange,
 } from '@sql-magic/core';
-import { SqliteEngine, generateCommitScript } from '@sql-magic/core';
+import { SqliteEngine, HttpAdapter, SAMPLE_STORE_SQL, generateCommitScript } from '@sql-magic/core';
 import {
   Database,
   Table,
@@ -124,7 +124,7 @@ export default function App() {
   useEffect(() => {
     const session = loadSessionState();
     if (session.theme) setTheme(session.theme);
-    initSampleDatabase();
+    initApp();
 
     const sharedQuery = extractSharedQueryFromUrl();
     if (sharedQuery) {
@@ -132,110 +132,87 @@ export default function App() {
     }
   }, []);
 
+  const initApp = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    // 1. Check if running connected to sql-magic server backend
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token') || undefined;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/health', { headers });
+      if (res.ok) {
+        const health = await res.json();
+        if (health.status === 'ok') {
+          const httpAdapter = new HttpAdapter({
+            token,
+            dialect: health.dialect,
+            capabilities: health.capabilities,
+          });
+
+          const schemaData = await httpAdapter.getSchema();
+          setAdapter(httpAdapter);
+          setSchema(schemaData);
+
+          let displayName = `${health.dialect}_database`;
+          if (health.targetPath) {
+            const parts = health.targetPath.replace(/\\/g, '/').split('/');
+            displayName = parts[parts.length - 1] || health.targetPath;
+          }
+          setDbName(displayName);
+          setChanges([]);
+          setUndoStack([]);
+          setRedoStack([]);
+
+          if (schemaData.tables.length > 0) {
+            const defaultTable = schemaData.tables.find((t) => t.name === 'customers') || schemaData.tables[0];
+            setSelectedTable(defaultTable);
+            const queryRes = await httpAdapter.query(
+              `SELECT * FROM ${httpAdapter.quoteIdent(defaultTable.name)} LIMIT 100;`
+            );
+            setQueryResult(queryRes);
+          }
+
+          // Subscribe to Server-Sent Events (SSE) for file changes
+          if (typeof EventSource !== 'undefined') {
+            try {
+              const sseUrl = token ? `/api/events?token=${encodeURIComponent(token)}` : '/api/events';
+              const es = new EventSource(sseUrl);
+              es.addEventListener('db-change', async () => {
+                try {
+                  const refreshed = await httpAdapter.getSchema();
+                  setSchema(refreshed);
+                } catch {
+                  // Ignore transient reload errors
+                }
+              });
+            } catch {
+              // SSE not available
+            }
+          }
+          return;
+        }
+      }
+    } catch {
+      // Server not reachable, fallback to browser WASM mode
+    } finally {
+      setIsLoading(false);
+    }
+
+    // 2. Browser WASM mode fallback
+    await initSampleDatabase();
+  };
+
   const initSampleDatabase = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
       const engine = new SqliteEngine();
       await engine.init();
-
-      // Create an expansive realistic database for demonstration
-      await engine.query(`
-        CREATE TABLE categories (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL UNIQUE,
-          description TEXT
-        );
-
-        CREATE TABLE customers (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          email TEXT UNIQUE NOT NULL,
-          country TEXT DEFAULT 'US',
-          balance REAL DEFAULT 0.0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE products (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          category_id INTEGER,
-          sku TEXT UNIQUE,
-          price REAL NOT NULL,
-          stock_qty INTEGER DEFAULT 0,
-          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-        );
-
-        CREATE INDEX idx_products_cat ON products(category_id);
-        CREATE INDEX idx_products_sku ON products(sku);
-
-        CREATE TABLE orders (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          customer_id INTEGER NOT NULL,
-          order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-          total_amount REAL NOT NULL,
-          status TEXT CHECK(status IN ('pending', 'completed', 'shipped', 'cancelled')) DEFAULT 'pending',
-          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE order_items (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          order_id INTEGER NOT NULL,
-          product_id INTEGER NOT NULL,
-          quantity INTEGER NOT NULL DEFAULT 1,
-          unit_price REAL NOT NULL,
-          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
-        );
-
-        CREATE VIEW customer_order_summary AS
-        SELECT 
-          c.id AS customer_id,
-          c.name AS customer_name,
-          c.email,
-          COUNT(o.id) AS total_orders,
-          COALESCE(SUM(o.total_amount), 0.0) AS lifetime_spent
-        FROM customers c
-        LEFT JOIN orders o ON c.id = o.customer_id
-        GROUP BY c.id;
-
-        CREATE TRIGGER update_customer_balance AFTER INSERT ON orders
-        BEGIN
-          UPDATE customers SET balance = balance + NEW.total_amount WHERE id = NEW.customer_id;
-        END;
-
-        INSERT INTO categories (name, description) VALUES
-          ('Electronics', 'Smartphones, laptops, and consumer gadgets'),
-          ('Office Supplies', 'Ergonomic chairs, desks, stationery'),
-          ('Audio', 'Noise-canceling headphones, monitors, microphones');
-
-        INSERT INTO customers (name, email, country, balance) VALUES
-          ('Sarah Jenkins', 'sarah.j@example.com', 'US', 249.50),
-          ('Alexandre Dumas', 'alex.dumas@france.fr', 'FR', 0.00),
-          ('Kenji Takahashi', 'kenji.t@tokyo.jp', 'JP', 1250.75),
-          ('Elena Rostova', 'elena.rostova@berlin.de', 'DE', 89.20),
-          ('Carlos Mendez', 'carlos.m@buenosaires.ar', 'AR', 415.00);
-
-        INSERT INTO products (name, category_id, sku, price, stock_qty) VALUES
-          ('Mechanical Keyboard (Cherry Brown)', 1, 'KB-MECH-BR', 129.99, 45),
-          ('Ultra-wide 34" Curved Monitor', 1, 'MON-34-UW', 599.00, 18),
-          ('Studio Reference Headphones', 3, 'AUD-REF-80', 189.50, 32),
-          ('Standing Desk Converter', 2, 'DSK-CONV-01', 220.00, 12),
-          ('USB-C 10-in-1 Hub', 1, 'HUB-USBC-10', 49.99, 120);
-
-        INSERT INTO orders (customer_id, total_amount, status) VALUES
-          (1, 129.99, 'completed'),
-          (1, 119.51, 'shipped'),
-          (3, 1250.75, 'pending'),
-          (5, 415.00, 'completed');
-
-        INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES
-          (1, 1, 1, 129.99),
-          (2, 5, 2, 49.99),
-          (3, 2, 2, 599.00),
-          (4, 4, 1, 220.00),
-          (4, 3, 1, 189.50);
-      `);
+      await engine.query(SAMPLE_STORE_SQL);
 
       const schemaData = await engine.getSchema();
       setAdapter(engine);
@@ -246,9 +223,29 @@ export default function App() {
       setRedoStack([]);
 
       if (schemaData.tables.length > 0) {
-        setSelectedTable(schemaData.tables[1]); // Default to customers
-        const res = await engine.query('SELECT * FROM customers LIMIT 100;');
+        const defaultTable = schemaData.tables.find((t) => t.name === 'customers') || schemaData.tables[0];
+        setSelectedTable(defaultTable);
+        const res = await engine.query(`SELECT * FROM ${engine.quoteIdent(defaultTable.name)} LIMIT 100;`);
         setQueryResult(res);
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!adapter) return;
+    setIsLoading(true);
+    try {
+      const refreshed = await adapter.getSchema(activeSchema !== 'public' ? activeSchema : undefined);
+      setSchema(refreshed);
+      if (selectedTable) {
+        const found = refreshed.tables.find((t) => t.name === selectedTable.name);
+        if (found) {
+          await handleSelectTable(found);
+        }
       }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -875,7 +872,7 @@ export default function App() {
             schema={schema}
             selectedTable={selectedTable}
             onSelectTable={handleSelectTable}
-            onRefresh={initSampleDatabase}
+            onRefresh={handleRefresh}
             onPragmaAction={() => setShowPragmaModal(true)}
             capabilities={capabilities}
             schemasList={schemasList}

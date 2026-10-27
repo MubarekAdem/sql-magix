@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import type {
   DbAdapter,
   DbCapabilities,
@@ -41,29 +42,49 @@ export class NodeSqliteAdapter implements DbAdapter {
    * Initializes the native database connection.
    */
   async init(): Promise<void> {
+    if (this.filepath !== ':memory:' && this.options.readOnly && !fs.existsSync(this.filepath)) {
+      throw new Error(
+        `Database file not found: "${this.filepath}". Cannot open a non-existent file in read-only mode.`
+      );
+    }
+
+    // 1. Try native node:sqlite (Node 22+)
+    let DatabaseSyncClass: any = null;
     try {
-      // 1. Try native node:sqlite (Node 22+)
-      const { DatabaseSync } = await import('node:sqlite');
-      this.db = new DatabaseSync(this.filepath, {
-        readOnly: !!this.options.readOnly,
-        open: true,
-      });
-      return;
+      const sqliteModule = await import('node:sqlite');
+      if (typeof sqliteModule.DatabaseSync === 'function') {
+        DatabaseSyncClass = sqliteModule.DatabaseSync;
+      }
     } catch {
-      // 2. Try better-sqlite3 fallback if node:sqlite is unavailable
+      // Native node:sqlite is not available
+    }
+
+    if (DatabaseSyncClass) {
       try {
-        const BetterSqlite3 = (await import('better-sqlite3' as any)).default;
-        this.db = new BetterSqlite3(this.filepath, {
-          readonly: !!this.options.readOnly,
+        this.db = new DatabaseSyncClass(this.filepath, {
+          readOnly: !!this.options.readOnly,
+          open: true,
         });
         return;
       } catch (err: unknown) {
-        throw new Error(
-          `Failed to initialize SQLite server adapter. Neither 'node:sqlite' nor 'better-sqlite3' could be loaded: ${
-            err instanceof Error ? err.message : String(err)
-          }`
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to open SQLite database at "${this.filepath}": ${msg}`);
       }
+    }
+
+    // 2. Try better-sqlite3 fallback if node:sqlite is unavailable
+    try {
+      const BetterSqlite3 = (await import('better-sqlite3' as any)).default;
+      this.db = new BetterSqlite3(this.filepath, {
+        readonly: !!this.options.readOnly,
+      });
+      return;
+    } catch (err: unknown) {
+      throw new Error(
+        `Failed to initialize SQLite server adapter. Native 'node:sqlite' is unavailable on Node ${process.version}, and optional fallback 'better-sqlite3' could not be loaded: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     }
   }
 

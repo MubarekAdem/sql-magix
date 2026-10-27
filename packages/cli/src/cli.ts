@@ -5,7 +5,7 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import open from 'open';
 import dotenv from 'dotenv';
-import { createAdapter, maskConnectionString, detectDialectFromUrl } from '@sql-magic/core/server';
+import { createAdapter, maskConnectionString, detectDialectFromUrl, seedSampleDatabase } from '@sql-magic/core/server';
 import { startViewer, scanDirectoryForDatabases } from '@sql-magic/server';
 
 // Load .env or .env.local if present
@@ -30,7 +30,22 @@ program
   .option('--no-watch', 'Disable file watching for database changes')
   .option('-q, --query <sql>', 'Execute headless SQL query and exit')
   .option('--format <format>', 'Output format for headless query (json, csv)', 'json')
+  .option('--create-sample [filepath]', 'Generate a sample SQLite database populated with demo tables and data')
+  .option('--demo', 'Shortcut to create and start studio with sample data')
   .action(async (targetArg, options) => {
+    // 0. Handle explicit sample creation
+    if (options.createSample || options.demo) {
+      const sampleFile = typeof options.createSample === 'string'
+        ? path.resolve(options.createSample)
+        : (targetArg && targetArg !== '.' ? path.resolve(targetArg) : path.resolve('./app.db'));
+      console.log(pc.gray(`🌱 Seeding sample SQLite database at ${pc.white(sampleFile)}...`));
+      await seedSampleDatabase(sampleFile);
+      console.log(pc.green(`✔ Sample database created with categories, customers, products, orders tables!\n`));
+      if (options.createSample && !options.demo && !options.query) {
+        process.exit(0);
+      }
+    }
+
     // Determine target from flag, argument, or DATABASE_URL env
     const rawTarget =
       options.url ||
@@ -45,6 +60,13 @@ program
 
     // 1. Headless Query Execution Mode
     if (options.query) {
+      if (!isUrl && resolvedTarget !== ':memory:' && !fs.existsSync(resolvedTarget)) {
+        console.error(pc.red(`\n✖ Database file not found: ${pc.bold(resolvedTarget)}`));
+        console.log(pc.gray(`  Ensure the file exists, or generate a demo database first:`));
+        console.log(`  ${pc.cyan('pnpm run start --create-sample ./app.db')}\n`);
+        process.exit(1);
+      }
+
       try {
         const adapter = await createAdapter(resolvedTarget, { readOnly: isReadOnly });
         const result = await adapter.query(options.query);
@@ -69,6 +91,14 @@ program
     // 2. Target Display & Logging with password masking
     console.log();
     console.log(pc.bold(pc.cyan('⚡ sql-magic studio v0.1.0')));
+
+    // Auto-seed if target file specified does not exist yet in server mode
+    if (!isUrl && resolvedTarget !== ':memory:' && !fs.existsSync(resolvedTarget)) {
+      console.log(pc.yellow(`⚠️  Database file "${pc.white(resolvedTarget)}" not found.`));
+      console.log(pc.gray(`   Auto-seeding demo database with sample tables and records...`));
+      await seedSampleDatabase(resolvedTarget);
+      console.log(pc.green(`✔ Created sample database at ${resolvedTarget}\n`));
+    }
 
     const maskedTarget = isUrl ? maskConnectionString(resolvedTarget) : resolvedTarget;
 
