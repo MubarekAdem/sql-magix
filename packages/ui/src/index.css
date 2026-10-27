@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: rgb(39 39 42);
+  }
+}

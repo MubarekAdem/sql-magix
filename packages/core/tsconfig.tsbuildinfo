@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/types.ts","./src/browser/adapter.ts","./src/browser/index.ts","./src/browser/protocol.ts","./src/browser/worker.ts","./src/sqlite/engine.ts","./src/sqlite/explain.ts","./src/sqlite/introspection.ts","./src/sqlite/quote.ts"],"version":"5.9.3"}

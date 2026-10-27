@@ -1,0 +1,24 @@
+{
+  "name": "sql-magic",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "sql-magic": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sql-magic/core": "workspace:*",
+    "@sql-magic/server": "workspace:*",
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.7"
+  }
+}
