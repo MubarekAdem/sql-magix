@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.9.0",
   "scripts": {
+    "start": "node packages/cli/dist/cli.js",
     "dev": "pnpm --filter @sql-magic/ui dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
