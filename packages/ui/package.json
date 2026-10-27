@@ -23,6 +23,7 @@
     "@tanstack/react-virtual": "^3.14.22",
     "@types/papaparse": "^5.5.2",
     "lucide-react": "^1.16.0",
+    "mermaid": "^12.2.0",
     "papaparse": "^5.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
