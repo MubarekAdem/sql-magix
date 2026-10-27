@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { SqliteEngine } from '@sql-magic/core';
+import { SqliteEngine } from 'sql-magic-core';
 import { createServer } from '../src/index.js';
 
-describe('@sql-magic/server HTTP API', () => {
+describe('sql-magic-server HTTP API', () => {
   let engine: SqliteEngine;
 
   beforeEach(async () => {

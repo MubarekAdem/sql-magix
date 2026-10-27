@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import type { DatabaseSchema, TableInfo } from '@sql-magic/core';
+import type { DatabaseSchema, TableInfo } from 'sql-magic-core';
 import mermaid from 'mermaid';
 import {
   X,

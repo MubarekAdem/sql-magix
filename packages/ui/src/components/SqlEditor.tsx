@@ -7,7 +7,7 @@ import { autocompletion, type CompletionContext, type CompletionResult } from '@
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { oneDark } from '@codemirror/theme-one-dark';
-import type { DatabaseSchema } from '@sql-magic/core';
+import type { DatabaseSchema } from 'sql-magic-core';
 import { Play, Plus, X, History, Clock, Check, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface QueryHistoryItem {

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
-import type { DatabaseSchema, Dialect } from '@sql-magic/core';
-import { generateImportStatements, inferColumnType } from '@sql-magic/core';
+import type { DatabaseSchema, Dialect } from 'sql-magic-core';
+import { generateImportStatements, inferColumnType } from 'sql-magic-core';
 import {
   Upload,
   FileSpreadsheet,

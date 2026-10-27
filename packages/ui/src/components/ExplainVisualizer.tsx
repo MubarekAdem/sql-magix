@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import type { Plan, Dialect } from '@sql-magic/core';
-import { analyzePlanForMissingIndexes, type IndexRecommendation } from '@sql-magic/core';
+import type { Plan, Dialect } from 'sql-magic-core';
+import { analyzePlanForMissingIndexes, type IndexRecommendation } from 'sql-magic-core';
 import {
   Activity,
   AlertTriangle,

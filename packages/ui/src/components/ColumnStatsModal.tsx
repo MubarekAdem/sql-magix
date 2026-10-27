@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { ResultSet, TableInfo } from '@sql-magic/core';
-import { computeColumnStatistics, type ColumnStatistics } from '@sql-magic/core';
+import type { ResultSet, TableInfo } from 'sql-magic-core';
+import { computeColumnStatistics, type ColumnStatistics } from 'sql-magic-core';
 import {
   X,
   BarChart2,

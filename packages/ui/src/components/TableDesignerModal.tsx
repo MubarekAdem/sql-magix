@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DatabaseSchema, Dialect } from '@sql-magic/core';
+import type { DatabaseSchema, Dialect } from 'sql-magic-core';
 import {
   generateCreateTableSql,
   generateCreateIndexSql,
@@ -11,7 +11,7 @@ import {
   type TableDefinition,
   type ColumnDefinition,
   type IndexDefinition,
-} from '@sql-magic/core';
+} from 'sql-magic-core';
 import {
   Table,
   Plus,

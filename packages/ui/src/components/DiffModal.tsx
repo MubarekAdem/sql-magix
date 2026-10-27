@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { ResultSet } from '@sql-magic/core';
-import { diffResultSets, type ResultSetDiff } from '@sql-magic/core';
+import type { ResultSet } from 'sql-magic-core';
+import { diffResultSets, type ResultSetDiff } from 'sql-magic-core';
 import {
   GitCompare,
   X,

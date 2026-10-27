@@ -1,5 +1,5 @@
 {
-  "name": "@sql-magic/core",
+  "name": "sql-magic-core",
   "version": "0.1.0",
   "description": "Core database adapter engine and schema introspection for sql-magic",
   "type": "module",

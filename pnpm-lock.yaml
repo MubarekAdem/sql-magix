@@ -20,12 +20,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@sql-magic/core':
-        specifier: workspace:*
-        version: link:../core
-      '@sql-magic/server':
-        specifier: workspace:*
-        version: link:../server
       commander:
         specifier: ^13.1.0
         version: 13.1.0
@@ -38,6 +32,12 @@ importers:
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      sql-magic-core:
+        specifier: workspace:*
+        version: link:../core
+      sql-magic-server:
+        specifier: workspace:*
+        version: link:../server
     devDependencies:
       '@types/node':
         specifier: ^22.13.5
@@ -79,12 +79,12 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.8
         version: 1.19.17(hono@4.13.14)
-      '@sql-magic/core':
-        specifier: workspace:*
-        version: link:../core
       hono:
         specifier: ^4.7.2
         version: 4.13.14
+      sql-magic-core:
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^22.13.5
@@ -122,9 +122,6 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.5
         version: 1.2.5
-      '@sql-magic/core':
-        specifier: workspace:*
-        version: link:../core
       '@tanstack/react-virtual':
         specifier: ^3.14.22
         version: 3.14.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -146,6 +143,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.1(react@19.3.1)
+      sql-magic-core:
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.9

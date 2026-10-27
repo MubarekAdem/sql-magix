@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ColumnMeta, ForeignKeyInfo, ResultSet, ChangeItem } from '@sql-magic/core';
+import type { ColumnMeta, ForeignKeyInfo, ResultSet, ChangeItem } from 'sql-magic-core';
 import {
   ArrowUpDown,
   ArrowUp,

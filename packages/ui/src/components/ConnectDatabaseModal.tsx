@@ -11,7 +11,7 @@ import {
   Copy,
   ExternalLink,
 } from 'lucide-react';
-import type { DatabaseSchema, DbCapabilities, Dialect } from '@sql-magic/core';
+import type { DatabaseSchema, DbCapabilities, Dialect } from 'sql-magic-core';
 
 interface ConnectDatabaseModalProps {
   isServerMode: boolean;

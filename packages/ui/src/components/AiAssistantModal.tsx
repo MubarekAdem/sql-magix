@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { DatabaseSchema, Dialect } from '@sql-magic/core';
+import type { DatabaseSchema, Dialect } from 'sql-magic-core';
 import {
   Sparkles,
   X,

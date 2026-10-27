@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { DatabaseSchema, TableInfo } from '@sql-magic/core';
+import type { DatabaseSchema, TableInfo } from 'sql-magic-core';
 import {
   Table,
   Database,

@@ -5,8 +5,8 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import open from 'open';
 import dotenv from 'dotenv';
-import { createAdapter, maskConnectionString, detectDialectFromUrl, seedSampleDatabase } from '@sql-magic/core/server';
-import { startViewer, scanDirectoryForDatabases } from '@sql-magic/server';
+import { createAdapter, maskConnectionString, detectDialectFromUrl, seedSampleDatabase } from 'sql-magic-core/server';
+import { startViewer, scanDirectoryForDatabases } from 'sql-magic-server';
 
 // Load .env or .env.local if present
 dotenv.config();

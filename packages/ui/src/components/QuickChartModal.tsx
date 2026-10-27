@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { ResultSet } from '@sql-magic/core';
+import type { ResultSet } from 'sql-magic-core';
 import {
   X,
   BarChart,

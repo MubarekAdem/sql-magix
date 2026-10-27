@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DbAdapter, ResultSet } from '@sql-magic/core';
+import type { DbAdapter, ResultSet } from 'sql-magic-core';
 import {
   Sparkles,
   X,

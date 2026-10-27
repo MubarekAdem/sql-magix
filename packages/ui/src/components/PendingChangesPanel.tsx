@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { ChangeItem, Dialect } from '@sql-magic/core';
-import { generateCommitScript, generateSqlForChange } from '@sql-magic/core';
+import type { ChangeItem, Dialect } from 'sql-magic-core';
+import { generateCommitScript, generateSqlForChange } from 'sql-magic-core';
 import {
   CheckCircle,
   XCircle,

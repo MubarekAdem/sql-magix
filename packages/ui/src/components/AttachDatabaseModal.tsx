@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DbAdapter } from '@sql-magic/core';
+import type { DbAdapter } from 'sql-magic-core';
 import {
   Database,
   X,

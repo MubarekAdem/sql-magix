@@ -1,4 +1,4 @@
-import type { ColumnMeta, ResultSet } from '@sql-magic/core';
+import type { ColumnMeta, ResultSet } from 'sql-magic-core';
 
 /**
  * Escapes a cell value for RFC 4180 compliant CSV.

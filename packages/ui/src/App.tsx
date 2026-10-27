@@ -9,8 +9,8 @@ import type {
   UpdateCellChange,
   InsertRowChange,
   DeleteRowChange,
-} from '@sql-magic/core';
-import { SqliteEngine, HttpAdapter, SAMPLE_STORE_SQL, generateCommitScript } from '@sql-magic/core';
+} from 'sql-magic-core';
+import { SqliteEngine, HttpAdapter, SAMPLE_STORE_SQL, generateCommitScript } from 'sql-magic-core';
 import {
   Database,
   Table,

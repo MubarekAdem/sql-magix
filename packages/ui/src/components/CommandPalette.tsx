@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { DatabaseSchema, TableInfo } from '@sql-magic/core';
+import type { DatabaseSchema, TableInfo } from 'sql-magic-core';
 import {
   Search,
   Table,

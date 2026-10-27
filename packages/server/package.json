@@ -1,5 +1,5 @@
 {
-  "name": "@sql-magic/server",
+  "name": "sql-magic-server",
   "version": "0.1.0",
   "description": "Lightweight Hono backend server and SSE live watcher for sql-magic",
   "type": "module",
@@ -30,8 +30,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
-    "@sql-magic/core": "workspace:*",
-    "hono": "^4.7.2"
+    "hono": "^4.7.2",
+    "sql-magic-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",
