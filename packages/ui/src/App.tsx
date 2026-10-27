@@ -5,8 +5,12 @@ import type {
   TableInfo,
   ResultSet,
   Plan,
+  ChangeItem,
+  UpdateCellChange,
+  InsertRowChange,
+  DeleteRowChange,
 } from '@sql-magic/core';
-import { SqliteEngine } from '@sql-magic/core';
+import { SqliteEngine, generateCommitScript } from '@sql-magic/core';
 import {
   Database,
   Table,
@@ -22,11 +26,18 @@ import {
   Info,
   Key,
   FileCode,
+  Upload,
+  PlusCircle,
+  Clock,
+  Layers,
 } from 'lucide-react';
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
 import { DataGrid } from './components/DataGrid';
 import { FileLoader } from './components/FileLoader';
+import { PendingChangesPanel } from './components/PendingChangesPanel';
+import { TableDesignerModal } from './components/TableDesignerModal';
+import { ImportModal } from './components/ImportModal';
 
 export default function App() {
   const [adapter, setAdapter] = useState<DbAdapter | null>(null);
@@ -45,6 +56,16 @@ export default function App() {
   const [schemasList, setSchemasList] = useState<string[]>([]);
   const [activeSchema, setActiveSchema] = useState<string>('public');
 
+  // Phase 5: Pending Changes & Undo/Redo & Modals State
+  const [changes, setChanges] = useState<ChangeItem[]>([]);
+  const [undoStack, setUndoStack] = useState<ChangeItem[][]>([]);
+  const [redoStack, setRedoStack] = useState<ChangeItem[][]>([]);
+  const [showPendingPanel, setShowPendingPanel] = useState<boolean>(false);
+  const [showTableDesigner, setShowTableDesigner] = useState<boolean>(false);
+  const [designerInitialMode, setDesignerInitialMode] = useState<'table' | 'index' | 'alter' | 'drop'>('table');
+  const [designerInitialTable, setDesignerInitialTable] = useState<string | undefined>(undefined);
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+
   // Startup demo database
   useEffect(() => {
     initSampleDatabase();
@@ -57,7 +78,7 @@ export default function App() {
       const engine = new SqliteEngine();
       await engine.init();
 
-      // Create an expansive realistic database for Phase 2 demonstration
+      // Create an expansive realistic database for demonstration
       await engine.query(`
         CREATE TABLE categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -161,6 +182,9 @@ export default function App() {
       setAdapter(engine);
       setSchema(introspected);
       setDbName(file.name);
+      setChanges([]);
+      setUndoStack([]);
+      setRedoStack([]);
 
       if (introspected.tables.length > 0) {
         const first = introspected.tables[0];
@@ -321,7 +345,220 @@ export default function App() {
     }
   };
 
+  // Phase 5 Changeset Handlers & Undo / Redo
+  const pushChanges = useCallback(
+    (newChanges: ChangeItem[]) => {
+      setUndoStack((prev) => [...prev, changes]);
+      setRedoStack([]);
+      setChanges(newChanges);
+    },
+    [changes]
+  );
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setRedoStack((r) => [...r, changes]);
+    setUndoStack((u) => u.slice(0, -1));
+    setChanges(prev);
+  }, [undoStack, changes]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setUndoStack((u) => [...u, changes]);
+    setRedoStack((r) => r.slice(0, -1));
+    setChanges(next);
+  }, [redoStack, changes]);
+
+  // Global Undo / Redo Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  const handleCellEdit = useCallback(
+    (row: Record<string, unknown>, colName: string, oldValue: unknown, newValue: unknown) => {
+      if (!selectedTable) return;
+
+      const pkCols = selectedTable.columns.filter((c) => c.primaryKey);
+      const pkValues: Record<string, unknown> = {};
+      for (const pk of pkCols) {
+        pkValues[pk.name] = row[pk.name];
+      }
+
+      const change: UpdateCellChange = {
+        id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        table: selectedTable.name,
+        type: 'update-cell',
+        timestamp: Date.now(),
+        pkValues,
+        column: colName,
+        oldValue,
+        newValue,
+        row,
+      };
+
+      pushChanges([...changes, change]);
+    },
+    [selectedTable, changes, pushChanges]
+  );
+
+  const handleAddRow = useCallback(() => {
+    if (!selectedTable) return;
+    const newValues: Record<string, unknown> = {};
+    for (const c of selectedTable.columns) {
+      if (c.autoIncrement) continue;
+      newValues[c.name] = c.defaultValue || (c.nullable ? null : '');
+    }
+
+    const change: InsertRowChange = {
+      id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      table: selectedTable.name,
+      type: 'insert-row',
+      timestamp: Date.now(),
+      values: newValues,
+    };
+
+    pushChanges([...changes, change]);
+  }, [selectedTable, changes, pushChanges]);
+
+  const handleDeleteRow = useCallback(
+    (row: Record<string, unknown>) => {
+      if (!selectedTable) return;
+      const pkCols = selectedTable.columns.filter((c) => c.primaryKey);
+      const pkValues: Record<string, unknown> = {};
+      for (const pk of pkCols) {
+        pkValues[pk.name] = row[pk.name];
+      }
+
+      const change: DeleteRowChange = {
+        id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        table: selectedTable.name,
+        type: 'delete-row',
+        timestamp: Date.now(),
+        pkValues,
+        row,
+      };
+
+      pushChanges([...changes, change]);
+    },
+    [selectedTable, changes, pushChanges]
+  );
+
+  const handleRevertChange = useCallback(
+    (id: string) => {
+      pushChanges(changes.filter((c) => c.id !== id));
+    },
+    [changes, pushChanges]
+  );
+
+  const handleDiscardAllChanges = useCallback(() => {
+    pushChanges([]);
+  }, [pushChanges]);
+
+  const handleCommitChanges = useCallback(async () => {
+    if (!adapter || changes.length === 0) return;
+
+    if (adapter.capabilities.readOnly) {
+      setErrorMessage(
+        'Database connection is read-only. Committing changes requires launching with --allow-write.'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const script = generateCommitScript(changes, adapter.dialect);
+      await adapter.query(script);
+      setChanges([]);
+      setUndoStack([]);
+      setRedoStack([]);
+      setShowPendingPanel(false);
+
+      // Refresh current table view
+      if (selectedTable) {
+        const res = await adapter.query(
+          `SELECT * FROM ${adapter.quoteIdent(selectedTable.name)} LIMIT 100;`
+        );
+        setQueryResult(res);
+      }
+      const freshSchema = await adapter.getSchema(activeSchema);
+      setSchema(freshSchema);
+    } catch (err: unknown) {
+      setErrorMessage(`Commit failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [adapter, changes, selectedTable, activeSchema]);
+
+  const handleExecuteDdl = useCallback(
+    async (sql: string) => {
+      if (!adapter) return;
+      if (adapter.capabilities.readOnly) {
+        throw new Error('Database is read-only. DDL requires --allow-write.');
+      }
+      await executeSql(sql);
+      const fresh = await adapter.getSchema(activeSchema);
+      setSchema(fresh);
+    },
+    [adapter, executeSql, activeSchema]
+  );
+
+  const handleExecuteImport = useCallback(
+    async (createTableSql: string, insertSqls: string[]) => {
+      if (!adapter) return;
+      if (adapter.capabilities.readOnly) {
+        throw new Error('Database is read-only. Import requires --allow-write.');
+      }
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        await adapter.query(createTableSql);
+        for (const ins of insertSqls) {
+          await adapter.query(ins);
+        }
+        const fresh = await adapter.getSchema(activeSchema);
+        setSchema(fresh);
+        if (fresh.tables.length > 0) {
+          const newest = fresh.tables[fresh.tables.length - 1];
+          setSelectedTable(newest);
+          const res = await adapter.query(
+            `SELECT * FROM ${adapter.quoteIdent(newest.name)} LIMIT 100;`
+          );
+          setQueryResult(res);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [adapter, activeSchema]
+  );
+
   const capabilities = adapter?.capabilities;
+  const isReadOnly = capabilities?.readOnly ?? false;
 
   return (
     <div
@@ -352,8 +589,13 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-sm tracking-tight text-white">sql-magic</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
-                  MVP Studio
+                  Studio
                 </span>
+                {isReadOnly && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800">
+                    Read-Only
+                  </span>
+                )}
               </div>
               <div className="text-xs text-zinc-400 flex items-center gap-2 font-mono">
                 <span className="truncate max-w-[200px]" title={dbName}>
@@ -368,6 +610,30 @@ export default function App() {
 
         {/* Dynamic Capability Badges & Controls */}
         <div className="flex items-center gap-2">
+          {/* Schema Designer Button */}
+          <button
+            onClick={() => {
+              setDesignerInitialMode('table');
+              setDesignerInitialTable(selectedTable?.name);
+              setShowTableDesigner(true);
+            }}
+            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
+            title="Open Visual Schema Designer"
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Designer</span>
+          </button>
+
+          {/* Import CSV / JSON Button */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
+            title="Import CSV or JSON data"
+          >
+            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Import</span>
+          </button>
+
           {capabilities?.explain && (
             <button
               onClick={runExplainPlan}
@@ -417,6 +683,12 @@ export default function App() {
             schemasList={schemasList}
             activeSchema={activeSchema}
             onSelectSchema={handleSelectSchema}
+            onOpenDesigner={(mode, tbl) => {
+              setDesignerInitialMode(mode || 'table');
+              setDesignerInitialTable(tbl);
+              setShowTableDesigner(true);
+            }}
+            onOpenImport={() => setShowImportModal(true)}
           />
         )}
 
@@ -505,8 +777,20 @@ export default function App() {
                 resultSet={queryResult}
                 tableName={selectedTable?.name || 'result'}
                 foreignKeys={selectedTable?.foreignKeys}
+                primaryKeys={selectedTable?.columns.filter((c) => c.primaryKey).map((c) => c.name)}
                 onNavigateForeignKey={handleNavigateForeignKey}
                 theme={theme}
+                isReadOnly={isReadOnly}
+                onCellEdit={handleCellEdit}
+                onAddRow={handleAddRow}
+                onDeleteRow={handleDeleteRow}
+                pendingChangesCount={changes.length}
+                onOpenPendingChanges={() => setShowPendingPanel(true)}
+                pendingChanges={changes}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
               />
             )}
 
@@ -690,6 +974,41 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {/* Phase 5 Modals */}
+      {showPendingPanel && adapter && (
+        <PendingChangesPanel
+          changes={changes}
+          dialect={adapter.dialect}
+          onCommit={handleCommitChanges}
+          onRevertChange={handleRevertChange}
+          onDiscardAll={handleDiscardAllChanges}
+          onClose={() => setShowPendingPanel(false)}
+          isReadOnly={isReadOnly}
+        />
+      )}
+
+      {showTableDesigner && adapter && (
+        <TableDesignerModal
+          schema={schema}
+          dialect={adapter.dialect}
+          onExecuteDdl={handleExecuteDdl}
+          onClose={() => setShowTableDesigner(false)}
+          isReadOnly={isReadOnly}
+          initialMode={designerInitialMode}
+          initialTable={designerInitialTable}
+        />
+      )}
+
+      {showImportModal && adapter && (
+        <ImportModal
+          schema={schema}
+          dialect={adapter.dialect}
+          onExecuteImport={handleExecuteImport}
+          onClose={() => setShowImportModal(false)}
+          isReadOnly={isReadOnly}
+        />
+      )}
     </div>
   );
 }

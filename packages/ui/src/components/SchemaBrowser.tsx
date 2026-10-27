@@ -12,6 +12,9 @@ import {
   FolderTree,
   FileCode,
   Sparkles,
+  Plus,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 
 interface SchemaBrowserProps {
@@ -25,6 +28,8 @@ interface SchemaBrowserProps {
   schemasList?: string[];
   activeSchema?: string;
   onSelectSchema?: (schema: string) => void;
+  onOpenDesigner?: (mode?: 'table' | 'index' | 'alter' | 'drop', initialTable?: string) => void;
+  onOpenImport?: () => void;
 }
 
 export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
@@ -38,6 +43,8 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
   schemasList = [],
   activeSchema = 'public',
   onSelectSchema,
+  onOpenDesigner,
+  onOpenImport,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
@@ -148,9 +155,29 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
             <span className="flex items-center gap-1.5">
               <Table className="w-3.5 h-3.5 text-indigo-400" /> Tables
             </span>
-            <span className="text-[10px] text-zinc-500 font-mono">
-              {filteredTables.length}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {onOpenDesigner && (
+                <button
+                  onClick={() => onOpenDesigner('table')}
+                  className="p-0.5 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition"
+                  title="Create new table"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onOpenImport && (
+                <button
+                  onClick={onOpenImport}
+                  className="p-0.5 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition"
+                  title="Import CSV / JSON"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <span className="text-[10px] text-zinc-500 font-mono">
+                {filteredTables.length}
+              </span>
+            </div>
           </div>
 
           <div className="mt-1 space-y-0.5">
@@ -159,7 +186,7 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
               const isExpanded = expandedTables.has(tbl.name);
 
               return (
-                <div key={tbl.name} className="flex flex-col">
+                <div key={tbl.name} className="flex flex-col group">
                   <div
                     onClick={() => onSelectTable(tbl)}
                     className={`flex items-center justify-between px-2 py-1.5 rounded text-xs cursor-pointer transition ${
@@ -182,9 +209,23 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
                       <span className="truncate font-mono">{tbl.name}</span>
                     </div>
 
-                    <span className="text-[10px] text-zinc-500 font-mono shrink-0 ml-1">
-                      {tbl.rowCount !== undefined ? `${tbl.rowCount}r` : `${tbl.columns.length}c`}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {onOpenDesigner && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenDesigner('drop', tbl.name);
+                          }}
+                          className="hidden group-hover:flex items-center p-0.5 text-zinc-500 hover:text-rose-400 rounded transition"
+                          title={`Drop ${tbl.name}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      <span className="text-[10px] text-zinc-500 font-mono shrink-0">
+                        {tbl.rowCount !== undefined ? `${tbl.rowCount}r` : `${tbl.columns.length}c`}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Expanded Columns List */}
@@ -263,40 +304,48 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
               {filteredTriggers.map((trg) => (
                 <div
                   key={trg.name}
-                  className="px-2 py-1.5 rounded text-xs text-zinc-400 flex items-center justify-between"
+                  className="px-2 py-1 rounded text-xs text-zinc-400 flex flex-col font-mono"
                 >
-                  <span className="truncate font-mono">{trg.name}</span>
-                  <span className="text-[10px] text-zinc-500 font-mono">{trg.table}</span>
+                  <span className="text-zinc-300 truncate">{trg.name}</span>
+                  <span className="text-[10px] text-zinc-500">
+                    on {trg.table} ({trg.timing} {trg.event})
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* PRAGMA Quick Actions (if supported by dialect) */}
+        {/* SQLite PRAGMA Quick Actions */}
         {capabilities?.pragma && onPragmaAction && (
-          <div className="pt-2 border-t border-zinc-800/80">
+          <div className="pt-2 border-t border-zinc-800">
             <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400" /> PRAGMA Tools
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> PRAGMA Tools
             </div>
-            <div className="mt-1 space-y-1">
+            <div className="grid grid-cols-2 gap-1.5 p-1 mt-1 font-sans">
               <button
                 onClick={() => onPragmaAction('PRAGMA integrity_check;')}
-                className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                className="px-2 py-1 rounded bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-[11px] text-zinc-300 text-left transition"
               >
                 Integrity Check
               </button>
               <button
                 onClick={() => onPragmaAction('PRAGMA foreign_key_check;')}
-                className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                className="px-2 py-1 rounded bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-[11px] text-zinc-300 text-left transition"
               >
-                Foreign Key Check
+                FK Check
               </button>
               <button
-                onClick={() => onPragmaAction('PRAGMA database_list;')}
-                className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                onClick={() => onPragmaAction('PRAGMA quick_check;')}
+                className="px-2 py-1 rounded bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-[11px] text-zinc-300 text-left transition"
               >
-                Database List
+                Quick Check
+              </button>
+              <button
+                onClick={() => onPragmaAction('VACUUM;')}
+                className="px-2 py-1 rounded bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-[11px] text-zinc-300 text-left transition"
+              >
+                VACUUM
               </button>
             </div>
           </div>

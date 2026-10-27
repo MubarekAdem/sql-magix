@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/datagrid.tsx","./src/components/fileloader.tsx","./src/components/schemabrowser.tsx","./src/components/sqleditor.tsx","./src/utils/export.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/datagrid.tsx","./src/components/fileloader.tsx","./src/components/importmodal.tsx","./src/components/pendingchangespanel.tsx","./src/components/schemabrowser.tsx","./src/components/sqleditor.tsx","./src/components/tabledesignermodal.tsx","./src/utils/export.ts"],"version":"5.9.3"}

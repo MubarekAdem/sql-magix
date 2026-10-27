@@ -4,3 +4,6 @@ export * from './sqlite/explain.js';
 export * from './sqlite/introspection.js';
 export * from './sqlite/engine.js';
 export * from './browser/index.js';
+export * from './changeset/index.js';
+export * from './import/infer.js';
+export * from './ddl/generator.js';

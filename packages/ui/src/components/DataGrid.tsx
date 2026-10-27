@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { ColumnMeta, ForeignKeyInfo, ResultSet } from '@sql-magic/core';
+import type { ColumnMeta, ForeignKeyInfo, ResultSet, ChangeItem } from '@sql-magic/core';
 import {
   ArrowUpDown,
   ArrowUp,
@@ -21,6 +21,13 @@ import {
   FileJson,
   ExternalLink,
   Key,
+  Plus,
+  Trash2,
+  Edit2,
+  Undo2,
+  Redo2,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import {
   exportToCsv,
@@ -35,8 +42,20 @@ interface DataGridProps {
   resultSet: ResultSet;
   tableName?: string;
   foreignKeys?: ForeignKeyInfo[];
+  primaryKeys?: string[];
   onNavigateForeignKey?: (refTable: string, refCol: string, val: unknown) => void;
   theme?: 'dark' | 'light';
+  isReadOnly?: boolean;
+  onCellEdit?: (row: Record<string, unknown>, colName: string, oldValue: unknown, newValue: unknown) => void;
+  onAddRow?: () => void;
+  onDeleteRow?: (row: Record<string, unknown>) => void;
+  pendingChangesCount?: number;
+  onOpenPendingChanges?: () => void;
+  pendingChanges?: ChangeItem[];
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -50,8 +69,20 @@ export const DataGrid: React.FC<DataGridProps> = ({
   resultSet,
   tableName = 'result',
   foreignKeys = [],
+  primaryKeys = [],
   onNavigateForeignKey,
   theme = 'dark',
+  isReadOnly = false,
+  onCellEdit,
+  onAddRow,
+  onDeleteRow,
+  pendingChangesCount = 0,
+  onOpenPendingChanges,
+  pendingChanges = [],
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }) => {
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -60,6 +91,24 @@ export const DataGrid: React.FC<DataGridProps> = ({
   const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: string; val: unknown } | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{
+    rowIndex: number;
+    colName: string;
+    originalVal: unknown;
+    editVal: string;
+    row: Record<string, unknown>;
+  } | null>(null);
+
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (editingCell && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingCell]);
 
   // Fast FK lookup
   const fkLookup = useMemo(() => {
@@ -70,6 +119,53 @@ export const DataGrid: React.FC<DataGridProps> = ({
     return map;
   }, [foreignKeys]);
 
+  // Map of pending deletions (row ids or pk values)
+  const pendingDeletions = useMemo(() => {
+    const deletedPkSet = new Set<string>();
+    for (const chg of pendingChanges) {
+      if (chg.type === 'delete-row') {
+        const pkKey = Object.entries(chg.pkValues)
+          .map(([k, v]) => `${k}:${v}`)
+          .sort()
+          .join('|');
+        if (pkKey) deletedPkSet.add(pkKey);
+      }
+    }
+    return deletedPkSet;
+  }, [pendingChanges]);
+
+  // Map of pending cell modifications
+  const pendingModifiedCells = useMemo(() => {
+    const modMap = new Map<string, unknown>();
+    for (const chg of pendingChanges) {
+      if (chg.type === 'update-cell') {
+        const pkKey = Object.entries(chg.pkValues)
+          .map(([k, v]) => `${k}:${v}`)
+          .sort()
+          .join('|');
+        modMap.set(`${pkKey}#${chg.column}`, chg.newValue);
+      }
+    }
+    return modMap;
+  }, [pendingChanges]);
+
+  // Helper to extract row PK key
+  const getRowPkKey = useCallback(
+    (row: Record<string, unknown>) => {
+      if (primaryKeys.length > 0) {
+        return primaryKeys
+          .map((pk) => `${pk}:${row[pk]}`)
+          .sort()
+          .join('|');
+      }
+      return Object.entries(row)
+        .slice(0, 3)
+        .map(([k, v]) => `${k}:${v}`)
+        .join('|');
+    },
+    [primaryKeys]
+  );
+
   // Sorting state
   const [sort, setSort] = useState<ColumnSort>({ column: '', direction: null });
 
@@ -79,7 +175,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   // Reset or align columns when resultSet changes
-  React.useEffect(() => {
+  useEffect(() => {
     setVisibleColumns(resultSet.columns.map((c) => c.name));
   }, [resultSet]);
 
@@ -216,10 +312,50 @@ export const DataGrid: React.FC<DataGridProps> = ({
   };
 
   const copyCell = (val: unknown) => {
-    const text = val === null || val === undefined ? '' : typeof val === 'object' ? JSON.stringify(val) : String(val);
+    const text =
+      val === null || val === undefined
+        ? ''
+        : typeof val === 'object'
+        ? JSON.stringify(val)
+        : String(val);
     navigator.clipboard.writeText(text);
     setCopyFeedback('Copied!');
     setTimeout(() => setCopyFeedback(null), 1500);
+  };
+
+  // Commit inline edit
+  const handleSaveEdit = () => {
+    if (!editingCell || !onCellEdit) {
+      setEditingCell(null);
+      return;
+    }
+
+    const { colName, originalVal, editVal, row } = editingCell;
+    let converted: unknown = editVal;
+
+    // Type coercion matching original type
+    if (editVal.trim().toLowerCase() === 'null') {
+      converted = null;
+    } else if (typeof originalVal === 'number') {
+      const num = Number(editVal);
+      if (!isNaN(num)) converted = num;
+    } else if (typeof originalVal === 'boolean') {
+      if (editVal.toLowerCase() === 'true') converted = true;
+      else if (editVal.toLowerCase() === 'false') converted = false;
+    }
+
+    if (converted !== originalVal) {
+      onCellEdit(row, colName, originalVal, converted);
+    }
+    setEditingCell(null);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
   };
 
   const activeColumns = useMemo(
@@ -231,7 +367,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
     <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-mono text-xs select-none">
       {/* Grid Toolbar */}
       <div className="flex items-center justify-between p-2.5 bg-zinc-900 border-b border-zinc-800 shrink-0">
-        {/* Left: Global Search & Filter Toggle */}
+        {/* Left: Global Search & Filter Toggle & Edit Buttons */}
         <div className="flex items-center gap-2">
           <div className="relative flex items-center">
             <Search className="w-3.5 h-3.5 absolute left-2 text-zinc-400" />
@@ -240,7 +376,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
               placeholder="Filter visible rows..."
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
-              className="pl-7 pr-3 py-1 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 w-52"
+              className="pl-7 pr-3 py-1 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 w-48"
             />
             {globalSearch && (
               <button
@@ -261,8 +397,60 @@ export const DataGrid: React.FC<DataGridProps> = ({
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
-            <span>Column Filters</span>
+            <span>Filters</span>
           </button>
+
+          {/* Add Row Button */}
+          {onAddRow && !isReadOnly && (
+            <button
+              onClick={onAddRow}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-300 hover:text-emerald-300 hover:border-emerald-800/60 transition"
+              title="Add a new row to table"
+            >
+              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Add Row</span>
+            </button>
+          )}
+
+          {/* Undo / Redo controls */}
+          {(onUndo || onRedo) && (
+            <div className="flex items-center border border-zinc-800 rounded bg-zinc-950">
+              {onUndo && (
+                <button
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className="p-1 px-1.5 text-zinc-400 hover:text-white disabled:opacity-30 border-r border-zinc-800 transition"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onRedo && (
+                <button
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className="p-1 px-1.5 text-zinc-400 hover:text-white disabled:opacity-30 transition"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <Redo2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Pending Changes Pill */}
+          {pendingChangesCount > 0 && onOpenPendingChanges && (
+            <button
+              onClick={onOpenPendingChanges}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/60 text-amber-300 border border-amber-700/80 hover:bg-amber-900/60 transition font-sans"
+              title="Review pending modifications"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span className="font-semibold text-xs">
+                {pendingChangesCount} Pending {pendingChangesCount === 1 ? 'Edit' : 'Edits'}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Right: Column Picker & Exporter & Row Counts */}
@@ -284,8 +472,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
             </button>
 
             {showColumnPicker && (
-              <div className="absolute right-0 top-8 w-56 max-h-72 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-2 z-30 overflow-y-auto">
-                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-800 text-[11px] font-sans">
+              <div className="absolute right-0 top-8 w-56 max-h-72 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-2 z-30 overflow-y-auto font-sans">
+                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-zinc-800 text-[11px]">
                   <span className="font-semibold text-zinc-300">Visible Columns</span>
                   <div className="flex gap-2">
                     <button
@@ -391,7 +579,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
           <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800 z-10 shadow-sm">
             <tr>
               {/* Row index header */}
-              <th className="w-12 px-2 py-2 text-zinc-500 font-normal border-r border-zinc-800 text-center select-none bg-zinc-900">
+              <th className="w-14 px-2 py-2 text-zinc-500 font-normal border-r border-zinc-800 text-center select-none bg-zinc-900">
                 #
               </th>
               {activeColumns.map((col) => {
@@ -479,58 +667,127 @@ export const DataGrid: React.FC<DataGridProps> = ({
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                   const row = processedRows[virtualRow.index];
                   const rowIndex = virtualRow.index;
+                  const rowPkKey = getRowPkKey(row);
+                  const isDeleted = pendingDeletions.has(rowPkKey);
+
                   return (
                     <tr
                       key={rowIndex}
-                      className="border-b border-zinc-900 hover:bg-zinc-900/60 transition group"
+                      className={`border-b border-zinc-900 transition group ${
+                        isDeleted
+                          ? 'bg-rose-950/20 line-through opacity-60 text-rose-300'
+                          : 'hover:bg-zinc-900/60'
+                      }`}
                     >
-                      {/* Row Index */}
-                      <td className="px-2 py-1.5 text-zinc-600 text-center border-r border-zinc-800 select-none bg-zinc-950/40">
-                        {rowIndex + 1}
+                      {/* Row Index & Delete Icon */}
+                      <td className="px-1 py-1.5 text-zinc-600 text-center border-r border-zinc-800 select-none bg-zinc-950/40 relative">
+                        <div className="flex items-center justify-center">
+                          <span className="group-hover:hidden">{rowIndex + 1}</span>
+                          {onDeleteRow && !isReadOnly && !isDeleted && (
+                            <button
+                              onClick={() => onDeleteRow(row)}
+                              className="hidden group-hover:flex items-center justify-center p-0.5 text-zinc-500 hover:text-rose-400 rounded transition"
+                              title="Stage row for deletion"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {isDeleted && <span className="text-[10px] text-rose-400">DEL</span>}
+                        </div>
                       </td>
 
                       {/* Columns */}
                       {activeColumns.map((col) => {
-                        const val = (row as any)[col.name];
-                        const isNull = val === null || val === undefined;
+                        const originalVal = (row as any)[col.name];
+                        const cellKey = `${rowPkKey}#${col.name}`;
+                        const isModified = pendingModifiedCells.has(cellKey);
+                        const displayVal = isModified ? pendingModifiedCells.get(cellKey) : originalVal;
+                        const isNull = displayVal === null || displayVal === undefined;
                         const width = columnWidths[col.name] || 150;
+
+                        const isBeingEdited =
+                          editingCell?.rowIndex === rowIndex && editingCell?.colName === col.name;
 
                         return (
                           <td
                             key={col.name}
-                            onClick={() => setSelectedCell({ row: rowIndex, col: col.name, val })}
+                            onClick={() => setSelectedCell({ row: rowIndex, col: col.name, val: displayVal })}
+                            onDoubleClick={() => {
+                              if (!isReadOnly && onCellEdit && !isDeleted) {
+                                setEditingCell({
+                                  rowIndex,
+                                  colName: col.name,
+                                  originalVal: displayVal,
+                                  editVal: isNull ? '' : String(displayVal),
+                                  row,
+                                });
+                              }
+                            }}
                             style={{
                               width: `${width}px`,
                               minWidth: `${width}px`,
                               maxWidth: `${width}px`,
                             }}
-                            className="px-3 py-1.5 border-r border-zinc-800/80 truncate text-zinc-200 cursor-pointer hover:bg-indigo-950/30 transition group/cell"
-                            title={String(val)}
+                            className={`px-3 py-1.5 border-r border-zinc-800/80 truncate cursor-pointer transition group/cell ${
+                              isModified
+                                ? 'bg-amber-950/30 text-amber-200 border-amber-600/50'
+                                : 'text-zinc-200 hover:bg-indigo-950/30'
+                            }`}
+                            title={String(displayVal)}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="truncate">
-                                {isNull ? (
-                                  <span className="text-zinc-600 italic">null</span>
-                                ) : typeof val === 'object' ? (
-                                  <span className="text-amber-400/90">{JSON.stringify(val)}</span>
-                                ) : (
-                                  String(val)
-                                )}
-                              </span>
-                              {!isNull && fkLookup.has(col.name) && onNavigateForeignKey && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const fk = fkLookup.get(col.name)!;
-                                    onNavigateForeignKey(fk.referencedTable, fk.referencedColumn, val);
-                                  }}
-                                  className="ml-1 p-0.5 rounded text-amber-400/70 hover:text-amber-300 hover:bg-amber-950/50 transition opacity-0 group-hover/cell:opacity-100"
-                                  title={`Follow FK ➜ ${fkLookup.get(col.name)!.referencedTable}(${fkLookup.get(col.name)!.referencedColumn})`}
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
+                            {isBeingEdited ? (
+                              <input
+                                ref={editInputRef}
+                                type="text"
+                                value={editingCell.editVal}
+                                onChange={(e) =>
+                                  setEditingCell((prev) =>
+                                    prev ? { ...prev, editVal: e.target.value } : null
+                                  )
+                                }
+                                onBlur={handleSaveEdit}
+                                onKeyDown={handleEditKeyDown}
+                                className="w-full bg-zinc-900 border border-indigo-500 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-between">
+                                <span className="truncate">
+                                  {isNull ? (
+                                    <span className="text-zinc-600 italic">null</span>
+                                  ) : typeof displayVal === 'object' ? (
+                                    <span className="text-amber-400/90">{JSON.stringify(displayVal)}</span>
+                                  ) : (
+                                    String(displayVal)
+                                  )}
+                                </span>
+
+                                <div className="flex items-center gap-1">
+                                  {isModified && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Cell modified" />
+                                  )}
+
+                                  {!isNull && fkLookup.has(col.name) && onNavigateForeignKey && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const fk = fkLookup.get(col.name)!;
+                                        onNavigateForeignKey(
+                                          fk.referencedTable,
+                                          fk.referencedColumn,
+                                          displayVal
+                                        );
+                                      }}
+                                      className="ml-1 p-0.5 rounded text-amber-400/70 hover:text-amber-300 hover:bg-amber-950/50 transition opacity-0 group-hover/cell:opacity-100"
+                                      title={`Follow FK ➜ ${
+                                        fkLookup.get(col.name)!.referencedTable
+                                      }(${fkLookup.get(col.name)!.referencedColumn})`}
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </td>
                         );
                       })}
@@ -574,6 +831,11 @@ export const DataGrid: React.FC<DataGridProps> = ({
               <span className="text-[10px] text-zinc-500">
                 (Row #{selectedCell.row + 1})
               </span>
+              {!isReadOnly && onCellEdit && (
+                <span className="text-[10px] text-zinc-500 italic">
+                  • Double-click cell to edit inline
+                </span>
+              )}
             </div>
             <pre className="p-2 bg-zinc-950 border border-zinc-800 rounded text-xs font-mono text-zinc-200 max-h-24 overflow-auto whitespace-pre-wrap select-text">
               {selectedCell.val === null || selectedCell.val === undefined
@@ -584,6 +846,28 @@ export const DataGrid: React.FC<DataGridProps> = ({
             </pre>
           </div>
           <div className="flex items-center gap-2 pt-1">
+            {/* Quick Edit button */}
+            {!isReadOnly && onCellEdit && (
+              <button
+                onClick={() => {
+                  const r = processedRows[selectedCell.row];
+                  if (r) {
+                    setEditingCell({
+                      rowIndex: selectedCell.row,
+                      colName: selectedCell.col,
+                      originalVal: selectedCell.val,
+                      editVal: selectedCell.val === null || selectedCell.val === undefined ? '' : String(selectedCell.val),
+                      row: r,
+                    });
+                  }
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/60 transition"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            )}
+
             {selectedCell.val !== null && selectedCell.val !== undefined && fkLookup.has(selectedCell.col) && onNavigateForeignKey && (
               <button
                 onClick={() => {
