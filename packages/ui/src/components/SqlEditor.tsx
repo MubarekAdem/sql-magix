@@ -4,9 +4,11 @@ import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSp
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { sql, SQLite } from '@codemirror/lang-sql';
 import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
 import { oneDark } from '@codemirror/theme-one-dark';
 import type { DatabaseSchema } from '@sql-magic/core';
-import { Play, Plus, X, History, Sparkles, Clock, Check, Copy } from 'lucide-react';
+import { Play, Plus, X, History, Clock, Check, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface QueryHistoryItem {
   id: string;
@@ -29,7 +31,57 @@ interface SqlEditorProps {
   isLoading: boolean;
   historyList: QueryHistoryItem[];
   theme?: 'dark' | 'light';
+  height?: number;
+  onToggleCollapse?: () => void;
 }
+
+// Light theme syntax highlighting styles matching Robi's Design System
+const sqlLightHighlightStyle = HighlightStyle.define([
+  { tag: [t.keyword, t.operatorKeyword], color: '#4f46e5', fontWeight: '600' }, // SELECT, FROM, WHERE, JOIN - indigo
+  { tag: [t.name, t.deleted, t.character, t.macroName], color: '#0f172a' }, // Identifiers - dark slate
+  { tag: [t.propertyName, t.variableName], color: '#0284c7' }, // Columns - ocean blue
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.labelName], color: '#0369a1', fontWeight: '500' }, // Functions
+  { tag: [t.color, t.constant(t.name), t.standard(t.name)], color: '#7c3aed' }, // Constants
+  { tag: [t.definition(t.name), t.separator], color: '#334155' },
+  { tag: [t.typeName, t.className, t.annotation, t.modifier, t.self, t.namespace], color: '#7c3aed', fontWeight: '500' }, // Types
+  { tag: [t.number, t.integer, t.float], color: '#d97706', fontWeight: '500' }, // Numbers - warm amber
+  { tag: [t.bool, t.null, t.atom], color: '#dc2626', fontWeight: '600' }, // Booleans, NULL - ruby red
+  { tag: [t.operator], color: '#475569' }, // Operators =, <, >
+  { tag: [t.url, t.escape, t.regexp, t.link], color: '#059669' },
+  { tag: [t.string, t.special(t.string)], color: '#16a34a' }, // Strings - rich green
+  { tag: t.comment, color: '#94a3b8', fontStyle: 'italic' }, // Comments - muted slate
+  { tag: [t.punctuation, t.bracket], color: '#64748b' }, // Brackets and punctuation
+]);
+
+// Light theme base editor layout
+const sqlLightTheme = EditorView.theme({
+  '&': {
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+  },
+  '.cm-content': {
+    caretColor: '#4f46e5',
+    padding: '8px 0',
+  },
+  '&.cm-focused .cm-cursor': {
+    borderLeftColor: '#4f46e5',
+  },
+  '&.cm-focused .cm-selectionBackground, ::selection': {
+    backgroundColor: '#e0e7ff !important',
+  },
+  '.cm-gutters': {
+    backgroundColor: '#f8f9fb',
+    color: '#94a3b8',
+    borderRight: '1px solid #e2e6ee',
+  },
+  '.cm-activeLine': {
+    backgroundColor: '#f8fafc',
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: '#f1f5f9',
+    color: '#1e293b',
+  },
+});
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({
   schema,
@@ -37,6 +89,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   isLoading,
   historyList,
   theme = 'light',
+  height = 160,
+  onToggleCollapse,
 }) => {
   const [tabs, setTabs] = useState<SqlEditorTab[]>([
     { id: 'tab-1', title: 'Query 1', query: 'SELECT * FROM customers LIMIT 50;' },
@@ -48,6 +102,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+  const isCollapsed = height <= 42;
 
   // Schema-aware SQL autocomplete provider
   const schemaCompletionSource = (context: CompletionContext): CompletionResult | null => {
@@ -140,7 +195,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         autocompletion({
           override: [schemaCompletionSource],
         }),
-        theme === 'dark' ? oneDark : [],
+        theme === 'dark'
+          ? [oneDark]
+          : [sqlLightTheme, syntaxHighlighting(sqlLightHighlightStyle)],
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             const newQuery = update.state.doc.toString();
@@ -151,13 +208,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         }),
         EditorView.theme({
           '&': {
-            height: '135px',
+            height: '100%',
             fontSize: '13px',
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             backgroundColor: theme === 'dark' ? '#121622' : '#ffffff',
           },
           '.cm-scroller': {
             overflow: 'auto',
+            height: '100%',
           },
           '.cm-content': {
             caretColor: '#6366f1',
@@ -237,12 +295,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     setTimeout(() => setCopiedId(null), 1500);
   };
 
+  // Remaining height for editor body
+  const bodyHeight = Math.max(0, height - 38);
+
   return (
-    <div className="flex flex-col bg-white dark:bg-[#121622] border-b border-[#e2e6ee] dark:border-[#222938] shrink-0 font-sans transition-colors duration-150">
+    <div
+      style={{ height: `${height}px` }}
+      className="flex flex-col bg-white dark:bg-[#121622] border-b border-[#e2e6ee] dark:border-[#222938] shrink-0 font-sans transition-colors duration-150 overflow-hidden"
+    >
       {/* Tab bar header */}
-      <div className="flex items-center justify-between px-3 pt-1.5 pb-0 bg-[#f8f9fb] dark:bg-[#0f1218] border-b border-[#e2e6ee] dark:border-[#222938]">
+      <div className="h-[38px] flex items-center justify-between px-3 bg-[#f8f9fb] dark:bg-[#0f1218] border-b border-[#e2e6ee] dark:border-[#222938] shrink-0 select-none">
         {/* Concentric Tabs Strip */}
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto h-full pt-1">
           {tabs.map((tab) => {
             const isActive = activeTabId === tab.id;
             return (
@@ -278,7 +342,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 pb-1.5">
+        <div className="flex items-center gap-2">
+          {/* History Drawer Toggle */}
           <button
             onClick={() => setShowHistory((prev) => !prev)}
             className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-150 border ${
@@ -292,6 +357,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
             <span>History ({historyList.length})</span>
           </button>
 
+          {/* Run Query Button */}
           <button
             onClick={handleRunCurrent}
             disabled={isLoading}
@@ -301,69 +367,86 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
             <span>Run</span>
             <span className="text-[10px] text-indigo-200 opacity-80 font-mono">⌘↵</span>
           </button>
+
+          {/* Quick Collapse / Expand Toggle */}
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-1 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
+              title={isCollapsed ? 'Expand Query Box' : 'Collapse Query Box'}
+            >
+              {isCollapsed ? (
+                <ChevronDown className="w-3.5 h-3.5 text-indigo-500" />
+              ) : (
+                <ChevronUp className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
       {/* CodeMirror Viewport Container */}
-      <div className="relative">
-        <div ref={editorContainerRef} />
+      {!isCollapsed && (
+        <div className="relative flex-1 min-h-0 overflow-hidden" style={{ height: `${bodyHeight}px` }}>
+          <div ref={editorContainerRef} className="h-full w-full overflow-hidden" />
 
-        {/* Query History Drawer */}
-        {showHistory && (
-          <div className="absolute top-0 right-0 w-[400px] max-h-72 bg-white dark:bg-[#141824] border-l border-b border-[#e2e6ee] dark:border-[#222938] shadow-xl dark:shadow-none z-20 flex flex-col font-sans">
-            <div className="flex items-center justify-between p-3 bg-[#f8f9fb] dark:bg-[#10131d] border-b border-[#e2e6ee] dark:border-[#222938]">
-              <span className="text-xs font-semibold tracking-wide text-[#5f687a] dark:text-[#98a0af] flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Query History</span>
-              </span>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white p-1 rounded"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-[#e2e6ee] dark:divide-[#222938]">
-              {historyList.length === 0 ? (
-                <div className="p-4 text-center text-xs text-[#8c96a8] italic">
-                  No previous queries recorded yet
-                </div>
-              ) : (
-                historyList.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => loadHistoryItem(item)}
-                    className="p-3 hover:bg-[#f8f9fb] dark:hover:bg-white/[0.04] cursor-pointer transition-colors group"
-                  >
-                    <div className="flex items-center justify-between text-[11px] text-[#8c96a8] mb-1">
-                      <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
-                      <div className="flex items-center gap-2 font-mono">
-                        <span>{item.durationMs}ms</span>
-                        <span>•</span>
-                        <span>{item.rowCount} rows</span>
-                        <button
-                          onClick={(e) => copyHistoryQuery(item, e)}
-                          className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white transition"
-                          title="Copy SQL"
-                        >
-                          {copiedId === item.id ? (
-                            <Check className="w-3 h-3 text-emerald-500" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <pre className="text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] truncate max-w-full">
-                      {item.sql}
-                    </pre>
+          {/* Query History Drawer */}
+          {showHistory && (
+            <div className="absolute top-0 right-0 w-[400px] max-h-72 bg-white dark:bg-[#141824] border-l border-b border-[#e2e6ee] dark:border-[#222938] shadow-xl dark:shadow-none z-20 flex flex-col font-sans">
+              <div className="flex items-center justify-between p-3 bg-[#f8f9fb] dark:bg-[#10131d] border-b border-[#e2e6ee] dark:border-[#222938]">
+                <span className="text-xs font-semibold tracking-wide text-[#5f687a] dark:text-[#98a0af] flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Query History</span>
+                </span>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white p-1 rounded"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto divide-y divide-[#e2e6ee] dark:divide-[#222938]">
+                {historyList.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#8c96a8] italic">
+                    No previous queries recorded yet
                   </div>
-                ))
-              )}
+                ) : (
+                  historyList.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => loadHistoryItem(item)}
+                      className="p-3 hover:bg-[#f8f9fb] dark:hover:bg-white/[0.04] cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center justify-between text-[11px] text-[#8c96a8] mb-1">
+                        <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
+                        <div className="flex items-center gap-2 font-mono">
+                          <span>{item.durationMs}ms</span>
+                          <span>•</span>
+                          <span>{item.rowCount} rows</span>
+                          <button
+                            onClick={(e) => copyHistoryQuery(item, e)}
+                            className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white transition"
+                            title="Copy SQL"
+                          >
+                            {copiedId === item.id ? (
+                              <Check className="w-3 h-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <pre className="text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] truncate max-w-full">
+                        {item.sql}
+                      </pre>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

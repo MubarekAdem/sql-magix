@@ -114,6 +114,17 @@ export default function App() {
   const [showConnectModal, setShowConnectModal] = useState<boolean>(false);
   const [sharedCopied, setSharedCopied] = useState<boolean>(false);
 
+  // Dynamic Editor & Data Grid height splitter
+  const [editorHeight, setEditorHeight] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('sql-magic:editor-height');
+      return saved ? Math.max(38, Math.min(800, Number(saved))) : 160;
+    } catch {
+      return 160;
+    }
+  });
+  const [isDraggingResizer, setIsDraggingResizer] = useState<boolean>(false);
+
   // Apply dark mode class to <html> for Tailwind v4 and CSS variables
   useEffect(() => {
     if (theme === 'dark') {
@@ -318,6 +329,47 @@ export default function App() {
       setQueryResult(null);
     }
     return res;
+  };
+
+  const handleStartResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingResizer(true);
+    const startY = e.clientY;
+    const startHeight = editorHeight;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = moveEvent.clientY - startY;
+      const minHeight = 38;
+      const maxHeight = Math.max(minHeight, window.innerHeight - 220);
+      const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
+      setEditorHeight(nextHeight);
+      try {
+        localStorage.setItem('sql-magic:editor-height', String(nextHeight));
+      } catch {
+        // Ignore
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingResizer(false);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleToggleEditorCollapse = () => {
+    setEditorHeight((prev) => {
+      const next = prev <= 42 ? 160 : 38;
+      try {
+        localStorage.setItem('sql-magic:editor-height', String(next));
+      } catch {
+        // Ignore
+      }
+      return next;
+    });
   };
 
   const executeSql = useCallback(
@@ -933,14 +985,34 @@ export default function App() {
 
         {/* Center Canvas Area */}
         <main className="flex-1 flex flex-col overflow-hidden bg-[#f8f9fb] dark:bg-[#0f1218]">
-          {/* CodeMirror 6 SQL Editor */}
+          {/* CodeMirror 6 SQL Editor with Resizable Height */}
           <SqlEditor
             schema={schema}
             onExecute={executeSql}
             isLoading={isLoading}
             historyList={historyList}
             theme={theme}
+            height={editorHeight}
+            onToggleCollapse={handleToggleEditorCollapse}
           />
+
+          {/* Draggable Divider Resizer between Query Editor & Data Grid */}
+          <div
+            onMouseDown={handleStartResize}
+            onDoubleClick={handleToggleEditorCollapse}
+            className={`group relative h-2 -my-1 z-20 cursor-row-resize flex items-center justify-center select-none transition-colors ${
+              isDraggingResizer ? 'bg-indigo-500/20' : 'hover:bg-indigo-500/10'
+            }`}
+            title="Drag to resize Query Editor & Data Grid (Double click to toggle collapse)"
+          >
+            <div
+              className={`h-1 rounded-full transition-all duration-150 ${
+                isDraggingResizer
+                  ? 'w-16 bg-indigo-500'
+                  : 'w-10 bg-[#cbd5e1] dark:bg-[#334155] group-hover:w-16 group-hover:bg-indigo-500'
+              }`}
+            />
+          </div>
 
           {/* Error Banner */}
           {errorMessage && (
