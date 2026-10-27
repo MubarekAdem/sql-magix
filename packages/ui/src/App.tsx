@@ -46,6 +46,7 @@ import {
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
 import { DataGrid } from './components/DataGrid';
+import { EmptyDatabaseState } from './components/EmptyDatabaseState';
 import { FileLoader } from './components/FileLoader';
 import { PendingChangesPanel } from './components/PendingChangesPanel';
 import { TableDesignerModal } from './components/TableDesignerModal';
@@ -185,12 +186,15 @@ export default function App() {
           setRedoStack([]);
 
           if (schemaData.tables.length > 0) {
-            const defaultTable = schemaData.tables.find((t) => t.name === 'customers') || schemaData.tables[0];
+            const defaultTable = schemaData.tables[0];
             setSelectedTable(defaultTable);
             const queryRes = await httpAdapter.query(
               `SELECT * FROM ${httpAdapter.quoteIdent(defaultTable.name)} LIMIT 100;`
             );
             setQueryResult(queryRes);
+          } else {
+            setSelectedTable(null);
+            setQueryResult(null);
           }
 
           // Subscribe to Server-Sent Events (SSE) for file changes
@@ -219,20 +223,40 @@ export default function App() {
       setIsLoading(false);
     }
 
-    // 2. Browser WASM mode fallback
-    await initSampleDatabase();
+    // 2. Browser WASM mode fallback: start clean and empty
+    await initEmptyDatabase();
   };
 
-  const initSampleDatabase = async () => {
+  const initEmptyDatabase = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
       const engine = new SqliteEngine();
       await engine.init();
-      await engine.query(SAMPLE_STORE_SQL);
 
       const schemaData = await engine.getSchema();
       setAdapter(engine);
+      setSchema(schemaData);
+      setDbName('untitled.db');
+      setChanges([]);
+      setUndoStack([]);
+      setRedoStack([]);
+      setSelectedTable(null);
+      setQueryResult(null);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadSampleData = async () => {
+    if (!adapter) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      await adapter.query(SAMPLE_STORE_SQL);
+      const schemaData = await adapter.getSchema();
       setSchema(schemaData);
       setDbName('sample_store.sqlite');
       setChanges([]);
@@ -240,9 +264,9 @@ export default function App() {
       setRedoStack([]);
 
       if (schemaData.tables.length > 0) {
-        const defaultTable = schemaData.tables.find((t) => t.name === 'customers') || schemaData.tables[0];
+        const defaultTable = schemaData.tables[0];
         setSelectedTable(defaultTable);
-        const res = await engine.query(`SELECT * FROM ${engine.quoteIdent(defaultTable.name)} LIMIT 100;`);
+        const res = await adapter.query(`SELECT * FROM ${adapter.quoteIdent(defaultTable.name)} LIMIT 100;`);
         setQueryResult(res);
       }
     } catch (err: unknown) {
@@ -1137,41 +1161,68 @@ export default function App() {
 
           {/* Main Views Container */}
           <div className="flex-1 overflow-hidden relative">
-            {activeTab === 'grid' && queryResult && (
-              <DataGrid
-                resultSet={queryResult}
-                tableName={selectedTable?.name || 'result'}
-                foreignKeys={selectedTable?.foreignKeys}
-                primaryKeys={selectedTable?.columns.filter((c) => c.primaryKey).map((c) => c.name)}
-                onNavigateForeignKey={handleNavigateForeignKey}
-                theme={theme}
-                isReadOnly={isReadOnly}
-                onCellEdit={handleCellEdit}
-                onAddRow={handleAddRow}
-                onDeleteRow={handleDeleteRow}
-                pendingChangesCount={changes.length}
-                onOpenPendingChanges={() => setShowPendingPanel(true)}
-                pendingChanges={changes}
-                canUndo={undoStack.length > 0}
-                canRedo={redoStack.length > 0}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onOpenColumnStats={(col) => {
-                  setStatsColumn(col);
-                  setShowColumnStats(true);
-                }}
-                onOpenChart={() => setShowQuickChart(true)}
-                onOpenDiff={() => setShowDiffModal(true)}
-                onOpenRowDetail={(row, idx) => {
-                  setDetailRow(row);
-                  setDetailRowIndex(idx);
-                  setShowRowDetail(true);
-                }}
-              />
+            {activeTab === 'grid' && (
+              queryResult ? (
+                <DataGrid
+                  resultSet={queryResult}
+                  tableName={selectedTable?.name || 'result'}
+                  foreignKeys={selectedTable?.foreignKeys}
+                  primaryKeys={selectedTable?.columns.filter((c) => c.primaryKey).map((c) => c.name)}
+                  onNavigateForeignKey={handleNavigateForeignKey}
+                  theme={theme}
+                  isReadOnly={isReadOnly}
+                  onCellEdit={handleCellEdit}
+                  onAddRow={handleAddRow}
+                  onDeleteRow={handleDeleteRow}
+                  pendingChangesCount={changes.length}
+                  onOpenPendingChanges={() => setShowPendingPanel(true)}
+                  pendingChanges={changes}
+                  canUndo={undoStack.length > 0}
+                  canRedo={redoStack.length > 0}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  onOpenColumnStats={(col) => {
+                    setStatsColumn(col);
+                    setShowColumnStats(true);
+                  }}
+                  onOpenChart={() => setShowQuickChart(true)}
+                  onOpenDiff={() => setShowDiffModal(true)}
+                  onOpenRowDetail={(row, idx) => {
+                    setDetailRow(row);
+                    setDetailRowIndex(idx);
+                    setShowRowDetail(true);
+                  }}
+                />
+              ) : (
+                <EmptyDatabaseState
+                  onOpenFilePicker={() => {}}
+                  onOpenConnect={() => setShowConnectModal(true)}
+                  onOpenDesigner={() => {
+                    setDesignerInitialMode('table');
+                    setShowTableDesigner(true);
+                  }}
+                  onOpenImport={() => setShowImportModal(true)}
+                  onLoadSampleData={handleLoadSampleData}
+                  onInsertStarterQuery={() => {
+                    const starterSql =
+                      '-- Create a sample table and insert rows\n' +
+                      'CREATE TABLE items (\n' +
+                      '  id INTEGER PRIMARY KEY,\n' +
+                      '  name TEXT NOT NULL,\n' +
+                      '  price REAL NOT NULL DEFAULT 0.00\n' +
+                      ');\n\n' +
+                      "INSERT INTO items (name, price) VALUES ('Widget A', 19.99), ('Widget B', 29.50);\n" +
+                      'SELECT * FROM items;';
+                    setActiveEditorQuery(starterSql);
+                  }}
+                  onFileDrop={handleFileLoad}
+                />
+              )
             )}
 
-            {activeTab === 'schema' && selectedTable && (
-              <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto space-y-6 font-sans">
+            {activeTab === 'schema' && (
+              selectedTable ? (
+                <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto space-y-6 font-sans">
                 {/* Table Header Card */}
                 <div className="rounded-2xl p-4 bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938]">
                   <div className="flex items-center justify-between mb-4">
@@ -1332,7 +1383,17 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )}
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                  <Table className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-semibold text-[#1b202a] dark:text-[#edf0f6]">No table selected</h3>
+                <p className="text-xs text-[#5f687a] dark:text-[#98a0af] max-w-sm">
+                  Select a table from the explorer on the left or create a new table to inspect its schema and indexes.
+                </p>
+              </div>
+            ))}
 
             {/* EXPLAIN Query Plan Graphical Flow Visualizer */}
             {activeTab === 'explain' && explainPlan && adapter && (

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { DatabaseSchema, TableInfo } from '@sql-magic/core';
 import {
   Table,
+  Database,
   Eye,
   Zap,
   Search,
@@ -265,8 +266,25 @@ export const SchemaBrowser: React.FC<SchemaBrowserProps> = ({
             })}
 
             {filteredTables.length === 0 && (
-              <div className="px-2 py-3 text-xs text-[#8c96a8] dark:text-[#636d80] italic text-center">
-                No tables found
+              <div className="px-3 py-6 text-center space-y-2.5">
+                <div className="w-9 h-9 mx-auto rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-500">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#1b202a] dark:text-[#edf0f6]">No tables found</p>
+                  <p className="text-[11px] text-[#8c96a8] dark:text-[#636d80] mt-0.5">
+                    Create a table to begin
+                  </p>
+                </div>
+                {onOpenDesigner && (
+                  <button
+                    onClick={() => onOpenDesigner('table')}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition active:scale-[0.98]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New Table
+                  </button>
+                )}
               </div>
             )}
           </div>

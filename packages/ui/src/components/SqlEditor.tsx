@@ -100,7 +100,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       title: 'Query 1',
       query: schema?.tables?.[0]
         ? `SELECT * FROM "${schema.tables[0].name}" LIMIT 50;`
-        : 'SELECT * FROM customers LIMIT 50;',
+        : '-- Write your SQL query here\n-- e.g. CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);',
     },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-1');
