@@ -10,37 +10,40 @@ import { SqliteEngine } from '@sql-magic/core';
 import {
   Database,
   Table,
-  Eye,
   Zap,
-  Play,
-  FileCode,
-  Download,
-  Upload,
-  ShieldAlert,
-  Info,
   Activity,
-  Key,
   FolderTree,
-  FileQuestion,
-  RefreshCw,
-  Search,
+  ShieldAlert,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Download,
+  Info,
+  Key,
+  FileCode,
 } from 'lucide-react';
+import { SchemaBrowser } from './components/SchemaBrowser';
+import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
+import { DataGrid } from './components/DataGrid';
+import { FileLoader } from './components/FileLoader';
 
 export default function App() {
   const [adapter, setAdapter] = useState<DbAdapter | null>(null);
   const [schema, setSchema] = useState<DatabaseSchema | null>(null);
   const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null);
   const [activeTab, setActiveTab] = useState<'grid' | 'schema' | 'explain' | 'pragma'>('grid');
-  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM users LIMIT 50;');
   const [queryResult, setQueryResult] = useState<ResultSet | null>(null);
   const [explainPlan, setExplainPlan] = useState<Plan | null>(null);
   const [pragmaResult, setPragmaResult] = useState<ResultSet | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [dbName, setDbName] = useState<string>('in-memory.db');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dbName, setDbName] = useState<string>('sample_store.sqlite');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [historyList, setHistoryList] = useState<QueryHistoryItem[]>([]);
 
-  // Initialize SQLite engine with sample database on startup
+  // Startup demo database
   useEffect(() => {
     initSampleDatabase();
   }, []);
@@ -52,71 +55,90 @@ export default function App() {
       const engine = new SqliteEngine();
       await engine.init();
 
-      // Populate demo schema
+      // Create an expansive realistic database for Phase 2 demonstration
       await engine.query(`
-        CREATE TABLE departments (
+        CREATE TABLE categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL UNIQUE,
-          budget REAL DEFAULT 0.0
+          description TEXT
         );
 
-        CREATE TABLE users (
+        CREATE TABLE customers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           email TEXT UNIQUE NOT NULL,
-          department_id INTEGER,
-          role TEXT DEFAULT 'engineer',
-          active INTEGER DEFAULT 1,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+          country TEXT DEFAULT 'US',
+          balance REAL DEFAULT 0.0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE INDEX idx_users_department ON users(department_id);
-        CREATE INDEX idx_users_role ON users(role);
+        CREATE TABLE products (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          category_id INTEGER,
+          sku TEXT UNIQUE,
+          price REAL NOT NULL,
+          stock_qty INTEGER DEFAULT 0,
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX idx_products_cat ON products(category_id);
+        CREATE INDEX idx_products_sku ON products(sku);
 
         CREATE TABLE orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          amount REAL NOT NULL,
+          customer_id INTEGER NOT NULL,
+          total_amount REAL NOT NULL,
+          status TEXT DEFAULT 'pending',
           order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id)
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
         );
 
-        CREATE VIEW v_department_summary AS
-          SELECT d.id, d.name, COUNT(u.id) AS total_users, AVG(d.budget) AS budget
-          FROM departments d
-          LEFT JOIN users u ON u.department_id = d.id
-          GROUP BY d.id;
+        CREATE INDEX idx_orders_customer ON orders(customer_id);
 
-        INSERT INTO departments (name, budget) VALUES
-          ('Engineering', 150000.0),
-          ('Product', 95000.0),
-          ('Design', 60000.0);
+        CREATE VIEW v_customer_orders AS
+          SELECT c.id, c.name, c.email, COUNT(o.id) as total_orders, IFNULL(SUM(o.total_amount), 0) as total_spent
+          FROM customers c
+          LEFT JOIN orders o ON c.id = o.customer_id
+          GROUP BY c.id;
 
-        INSERT INTO users (name, email, department_id, role) VALUES
-          ('Alice Johnson', 'alice@company.com', 1, 'lead_architect'),
-          ('Bob Smith', 'bob@company.com', 1, 'senior_engineer'),
-          ('Charlie Davis', 'charlie@company.com', 2, 'product_manager'),
-          ('Diana Prince', 'diana@company.com', 3, 'ui_designer'),
-          ('Ethan Hunt', 'ethan@company.com', 1, 'qa_engineer');
+        -- Populate initial mock data
+        INSERT INTO categories (name, description) VALUES
+          ('Electronics', 'Gadgets, components, and devices'),
+          ('Books', 'Technical and non-technical books'),
+          ('Office Supplies', 'Desk accessories and stationary');
 
-        INSERT INTO orders (user_id, amount) VALUES
-          (1, 240.50),
-          (1, 89.99),
-          (2, 450.00),
-          (3, 120.00);
+        INSERT INTO customers (name, email, country, balance) VALUES
+          ('Alice Walker', 'alice@walker.org', 'US', 250.00),
+          ('Bob Vance', 'bob@vancerefrigeration.com', 'US', 410.50),
+          ('Carlos Mendez', 'carlos@mendez.es', 'ES', 89.20),
+          ('Devi Patel', 'devi@patel.in', 'IN', 1200.00),
+          ('Elena Rostova', 'elena@rostova.ru', 'DE', 0.00);
+
+        INSERT INTO products (name, category_id, sku, price, stock_qty) VALUES
+          ('Mechanical Keyboard (Cherry MX)', 1, 'KB-MECH-01', 129.99, 45),
+          ('4K UltraHD Monitor 27"', 1, 'MON-4K-27', 349.50, 18),
+          ('Designing Data-Intensive Applications', 2, 'BOOK-DDIA-01', 49.99, 120),
+          ('Ergonomic Mouse', 1, 'MSE-ERGO-02', 59.99, 60),
+          ('Heavy-Duty Desk Mat', 3, 'MAT-DESK-XL', 24.95, 200);
+
+        INSERT INTO orders (customer_id, total_amount, status) VALUES
+          (1, 179.98, 'completed'),
+          (1, 49.99, 'completed'),
+          (2, 349.50, 'processing'),
+          (3, 129.99, 'shipped'),
+          (4, 409.49, 'completed');
       `);
 
       const introspected = await engine.getSchema();
       setAdapter(engine);
       setSchema(introspected);
-      setDbName('demo_company.sqlite');
-      if (introspected.tables.length > 0) {
-        setSelectedTable(introspected.tables.find((t) => t.name === 'users') || introspected.tables[0]);
-      }
+      setDbName('sample_store.sqlite');
 
-      // Initial query run
-      const initialRes = await engine.query('SELECT * FROM users LIMIT 50;');
+      const initialTable = introspected.tables.find((t) => t.name === 'customers') || introspected.tables[0];
+      setSelectedTable(initialTable);
+
+      const initialRes = await engine.query('SELECT * FROM customers LIMIT 50;');
       setQueryResult(initialRes);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -125,7 +147,7 @@ export default function App() {
     }
   };
 
-  const loadFile = async (file: File) => {
+  const handleFileLoad = async (file: File) => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -139,11 +161,9 @@ export default function App() {
       setDbName(file.name);
 
       if (introspected.tables.length > 0) {
-        const firstTable = introspected.tables[0];
-        setSelectedTable(firstTable);
-        const query = `SELECT * FROM ${engine.quoteIdent(firstTable.name)} LIMIT 50;`;
-        setSqlQuery(query);
-        const res = await engine.query(query);
+        const first = introspected.tables[0];
+        setSelectedTable(first);
+        const res = await engine.query(`SELECT * FROM ${engine.quoteIdent(first.name)} LIMIT 100;`);
         setQueryResult(res);
       } else {
         setSelectedTable(null);
@@ -156,46 +176,70 @@ export default function App() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      loadFile(e.target.files[0]);
-    }
-  };
+  const executeSql = useCallback(
+    async (sql: string) => {
+      if (!adapter) return;
+      setIsLoading(true);
+      setErrorMessage(null);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      loadFile(e.dataTransfer.files[0]);
-    }
-  };
+      const start = Date.now();
+      try {
+        const res = await adapter.query(sql);
+        setQueryResult(res);
+        setActiveTab('grid');
 
-  const executeQuery = useCallback(async () => {
-    if (!adapter) return;
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await adapter.query(sqlQuery);
-      setQueryResult(res);
-      setActiveTab('grid');
+        // Record query history
+        setHistoryList((prev) => [
+          {
+            id: `h_${Date.now()}`,
+            sql,
+            timestamp: Date.now(),
+            durationMs: res.executionTimeMs,
+            rowCount: res.rowCount,
+          },
+          ...prev.slice(0, 49),
+        ]);
 
-      // Refresh schema if DDL was run
-      if (/^(CREATE|ALTER|DROP)\b/i.test(sqlQuery.trim())) {
-        const newSchema = await adapter.getSchema();
-        setSchema(newSchema);
+        // Refresh schema if DDL query
+        if (/^(CREATE|ALTER|DROP)\b/i.test(sql.trim())) {
+          const fresh = await adapter.getSchema();
+          setSchema(fresh);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setErrorMessage(msg);
+        setHistoryList((prev) => [
+          {
+            id: `h_${Date.now()}`,
+            sql,
+            timestamp: Date.now(),
+            durationMs: Date.now() - start,
+            rowCount: 0,
+            error: msg,
+          },
+          ...prev.slice(0, 49),
+        ]);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [adapter, sqlQuery]);
+    },
+    [adapter]
+  );
+
+  const handleSelectTable = async (table: TableInfo) => {
+    if (!adapter) return;
+    setSelectedTable(table);
+    const query = `SELECT * FROM ${adapter.quoteIdent(table.name)} LIMIT 100;`;
+    await executeSql(query);
+  };
 
   const runExplainPlan = async () => {
     if (!adapter || !adapter.capabilities.explain) return;
+    if (!queryResult) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const plan = await adapter.explain(sqlQuery);
+      const plan = await adapter.explain(`SELECT * FROM ${selectedTable?.name || 'customers'};`);
       setExplainPlan(plan);
       setActiveTab('explain');
     } catch (err: unknown) {
@@ -205,31 +249,14 @@ export default function App() {
     }
   };
 
-  const runPragma = async (pragmaCmd: string) => {
+  const runPragma = async (cmd: string) => {
     if (!adapter || !adapter.capabilities.pragma) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await adapter.query(pragmaCmd);
+      const res = await adapter.query(cmd);
       setPragmaResult(res);
       setActiveTab('pragma');
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSelectTable = async (table: TableInfo) => {
-    if (!adapter) return;
-    setSelectedTable(table);
-    const query = `SELECT * FROM ${adapter.quoteIdent(table.name)} LIMIT 50;`;
-    setSqlQuery(query);
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await adapter.query(query);
-      setQueryResult(res);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
@@ -255,272 +282,119 @@ export default function App() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-zinc-950 text-zinc-100 font-sans"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleDrop}
+      className={`flex flex-col h-screen ${
+        theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'
+      } font-sans`}
     >
-      {/* Top Header */}
+      {/* Top Header Bar */}
       <header className="flex items-center justify-between px-4 py-2.5 bg-zinc-900 border-b border-zinc-800 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-            <Database className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-white">sql-magic</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                Phase 1 MVP
-              </span>
+          <button
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            title="Toggle Sidebar"
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeftOpen className="w-4 h-4" />
+            )}
+          </button>
+
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+              <Database className="w-4 h-4" />
             </div>
-            <div className="text-xs text-zinc-400 flex items-center gap-2">
-              <span className="truncate max-w-[200px]" title={dbName}>
-                {dbName}
-              </span>
-              <span>•</span>
-              <span className="text-emerald-400 font-medium capitalize">
-                {adapter?.dialect || 'disconnected'}
-              </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm tracking-tight text-white">sql-magic</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+                  MVP Studio
+                </span>
+              </div>
+              <div className="text-xs text-zinc-400 flex items-center gap-2 font-mono">
+                <span className="truncate max-w-[200px]" title={dbName}>
+                  {dbName}
+                </span>
+                <span>•</span>
+                <span className="text-emerald-400 capitalize">{adapter?.dialect}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Dynamic Capability Badges */}
-        <div className="flex items-center gap-1.5 text-xs">
-          {capabilities?.schemas ? (
-            <span className="px-2 py-0.5 rounded bg-blue-950/60 text-blue-400 border border-blue-800/60 flex items-center gap-1">
-              <FolderTree className="w-3 h-3" /> Schemas
-            </span>
-          ) : (
-            <span
-              className="px-2 py-0.5 rounded bg-zinc-900 text-zinc-500 border border-zinc-800 flex items-center gap-1"
-              title="Schemas not supported in SQLite"
-            >
-              No Schemas
-            </span>
-          )}
-
+        {/* Dynamic Capability Badges & Controls */}
+        <div className="flex items-center gap-2">
           {capabilities?.explain && (
-            <span className="px-2 py-0.5 rounded bg-violet-950/60 text-violet-400 border border-violet-800/60 flex items-center gap-1">
-              <Activity className="w-3 h-3" /> EXPLAIN
-            </span>
-          )}
-
-          {capabilities?.pragma && (
-            <span className="px-2 py-0.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/60 flex items-center gap-1">
-              <Zap className="w-3 h-3" /> PRAGMA
-            </span>
-          )}
-
-          {capabilities?.readOnly && (
-            <span className="px-2 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-800/60 flex items-center gap-1 font-semibold">
-              <ShieldAlert className="w-3 h-3" /> Read-Only
-            </span>
+            <button
+              onClick={runExplainPlan}
+              className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 flex items-center gap-1.5 transition"
+              title="Inspect execution plan"
+            >
+              <Activity className="w-3.5 h-3.5 text-violet-400" />
+              <span>EXPLAIN</span>
+            </button>
           )}
 
           {capabilities?.exportDatabase && (
             <button
               onClick={handleExportDatabase}
-              className="ml-2 flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-              title="Download SQLite database binary"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+              title="Download entire SQLite database binary"
             >
-              <Download className="w-3.5 h-3.5 text-zinc-400" /> Export .db
+              <Download className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Export .db</span>
             </button>
           )}
 
+          <FileLoader onLoad={handleFileLoad} isLoading={isLoading} />
+
+          {/* Theme Toggle */}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm"
+            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+            className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800 transition"
+            title="Toggle Theme"
           >
-            <Upload className="w-3.5 h-3.5" /> Open File
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".db,.sqlite,.sqlite3"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
         </div>
       </header>
 
-      {/* Main Workspace Body */}
+      {/* Main Workspace */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar: Schema Browser */}
-        <aside className="w-64 bg-zinc-900/60 border-r border-zinc-800 flex flex-col shrink-0">
-          <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Database Objects
-            </span>
-            <button
-              onClick={initSampleDatabase}
-              title="Reset to Sample Database"
-              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        {/* Collapsible Schema Browser Sidebar */}
+        {sidebarOpen && (
+          <SchemaBrowser
+            schema={schema}
+            selectedTable={selectedTable}
+            onSelectTable={handleSelectTable}
+            onRefresh={initSampleDatabase}
+            onPragmaAction={runPragma}
+            capabilities={capabilities}
+          />
+        )}
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-4">
-            {/* Tables List */}
-            <div>
-              <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Table className="w-3.5 h-3.5 text-indigo-400" />
-                Tables ({schema?.tables.length ?? 0})
-              </div>
-              <div className="mt-1 space-y-0.5">
-                {schema?.tables.map((tbl) => (
-                  <button
-                    key={tbl.name}
-                    onClick={() => handleSelectTable(tbl)}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition ${
-                      selectedTable?.name === tbl.name
-                        ? 'bg-indigo-600/20 text-indigo-300 font-medium'
-                        : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-white'
-                    }`}
-                  >
-                    <span className="truncate">{tbl.name}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">
-                      {tbl.rowCount !== undefined ? tbl.rowCount : tbl.columns.length + ' cols'}
-                    </span>
-                  </button>
-                ))}
-                {schema?.tables.length === 0 && (
-                  <div className="px-2 py-2 text-xs text-zinc-500 italic">No tables found</div>
-                )}
-              </div>
-            </div>
-
-            {/* Views List */}
-            {schema?.views && schema.views.length > 0 && (
-              <div>
-                <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                  Views ({schema.views.length})
-                </div>
-                <div className="mt-1 space-y-0.5">
-                  {schema.views.map((view) => (
-                    <button
-                      key={view.name}
-                      onClick={() => handleSelectTable(view)}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition ${
-                        selectedTable?.name === view.name
-                          ? 'bg-cyan-600/20 text-cyan-300 font-medium'
-                          : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-white'
-                      }`}
-                    >
-                      <span className="truncate">{view.name}</span>
-                      <span className="text-[10px] text-zinc-500 font-mono">view</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Triggers List */}
-            {schema?.triggers && schema.triggers.length > 0 && (
-              <div>
-                <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  Triggers ({schema.triggers.length})
-                </div>
-                <div className="mt-1 space-y-0.5">
-                  {schema.triggers.map((trg) => (
-                    <div
-                      key={trg.name}
-                      className="px-2 py-1.5 rounded text-xs text-zinc-400 flex items-center justify-between"
-                    >
-                      <span className="truncate">{trg.name}</span>
-                      <span className="text-[10px] text-zinc-500 font-mono">{trg.table}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* PRAGMA Quick Actions (Gated by capabilities.pragma) */}
-            {capabilities?.pragma && (
-              <div className="pt-2 border-t border-zinc-800/80">
-                <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  PRAGMA Inspector
-                </div>
-                <div className="mt-1 space-y-1">
-                  <button
-                    onClick={() => runPragma('PRAGMA integrity_check;')}
-                    className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-                  >
-                    Integrity Check
-                  </button>
-                  <button
-                    onClick={() => runPragma('PRAGMA foreign_key_check;')}
-                    className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-                  >
-                    Foreign Key Check
-                  </button>
-                  <button
-                    onClick={() => runPragma('PRAGMA database_list;')}
-                    className="w-full text-left px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-                  >
-                    Database List
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Central Content Area */}
+        {/* Center Canvas */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Query Editor Box */}
-          <div className="bg-zinc-900/80 border-b border-zinc-800 p-3 shrink-0 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                <FileCode className="w-3.5 h-3.5 text-indigo-400" /> SQL Query Editor
-              </span>
-              <div className="flex items-center gap-2">
-                {capabilities?.explain && (
-                  <button
-                    onClick={runExplainPlan}
-                    disabled={isLoading || !sqlQuery.trim()}
-                    className="flex items-center gap-1 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-50 transition"
-                  >
-                    <Activity className="w-3 h-3 text-violet-400" /> EXPLAIN Plan
-                  </button>
-                )}
-                <button
-                  onClick={executeQuery}
-                  disabled={isLoading || !sqlQuery.trim()}
-                  className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 transition shadow-sm"
-                >
-                  <Play className="w-3 h-3 fill-white" /> Run (Ctrl+Enter)
-                </button>
-              </div>
+          {/* CodeMirror 6 SQL Editor */}
+          <SqlEditor
+            schema={schema}
+            onExecute={executeSql}
+            isLoading={isLoading}
+            historyList={historyList}
+            theme={theme}
+          />
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="px-4 py-2 bg-rose-950/60 border-b border-rose-800 text-xs text-rose-300 flex items-center gap-2 font-mono">
+              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="truncate">{errorMessage}</span>
             </div>
+          )}
 
-            <textarea
-              value={sqlQuery}
-              onChange={(e) => setSqlQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  executeQuery();
-                }
-              }}
-              rows={3}
-              placeholder="Enter SQL statement (e.g. SELECT * FROM users;)"
-              className="w-full bg-zinc-950 font-mono text-xs text-zinc-200 p-2.5 rounded border border-zinc-800 focus:outline-none focus:border-indigo-500/50 resize-y"
-            />
-
-            {errorMessage && (
-              <div className="text-xs text-rose-400 bg-rose-950/40 border border-rose-800/60 p-2 rounded flex items-start gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
-                <span className="font-mono">{errorMessage}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="flex items-center justify-between px-4 bg-zinc-900 border-b border-zinc-800 shrink-0">
+          {/* Navigation Viewport Tabs */}
+          <div className="flex items-center justify-between px-4 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('grid')}
@@ -573,69 +447,23 @@ export default function App() {
 
             {queryResult && (
               <span className="text-[11px] text-zinc-500 font-mono">
-                Executed in {queryResult.executionTimeMs}ms • {queryResult.rowCount} rows
+                {queryResult.executionTimeMs}ms • {queryResult.rowCount} rows
               </span>
             )}
           </div>
 
-          {/* Tab Viewport */}
-          <div className="flex-1 overflow-auto bg-zinc-950 p-4">
-            {activeTab === 'grid' && (
-              <div className="h-full flex flex-col">
-                {queryResult && queryResult.columns.length > 0 ? (
-                  <div className="overflow-auto border border-zinc-800 rounded-lg">
-                    <table className="w-full text-left border-collapse font-mono text-xs">
-                      <thead>
-                        <tr className="bg-zinc-900 border-b border-zinc-800">
-                          {queryResult.columns.map((col, idx) => (
-                            <th
-                              key={idx}
-                              className="px-3 py-2 text-zinc-300 font-semibold border-r border-zinc-800"
-                            >
-                              {col.name}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800/60">
-                        {queryResult.rows.map((row, rIdx) => (
-                          <tr key={rIdx} className="hover:bg-zinc-900/40">
-                            {queryResult.columns.map((col, cIdx) => {
-                              const val = (row as any)[col.name];
-                              return (
-                                <td
-                                  key={cIdx}
-                                  className="px-3 py-1.5 text-zinc-200 border-r border-zinc-800/60 whitespace-nowrap"
-                                >
-                                  {val === null || val === undefined ? (
-                                    <span className="text-zinc-600 italic">null</span>
-                                  ) : typeof val === 'object' ? (
-                                    JSON.stringify(val)
-                                  ) : (
-                                    String(val)
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 py-12">
-                    <FileQuestion className="w-10 h-10 mb-2 text-zinc-600" />
-                    <p className="text-sm">No query results to display</p>
-                    <p className="text-xs text-zinc-600 mt-1">
-                      Execute a SELECT statement or choose a table from the sidebar
-                    </p>
-                  </div>
-                )}
-              </div>
+          {/* Main Views Container */}
+          <div className="flex-1 overflow-hidden relative">
+            {activeTab === 'grid' && queryResult && (
+              <DataGrid
+                resultSet={queryResult}
+                tableName={selectedTable?.name || 'result'}
+                theme={theme}
+              />
             )}
 
             {activeTab === 'schema' && selectedTable && (
-              <div className="space-y-6 max-w-4xl">
+              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-6">
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
                     <Table className="w-4 h-4 text-indigo-400" />
@@ -755,9 +583,9 @@ export default function App() {
                 {selectedTable.sql && (
                   <div>
                     <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                      <FileCode className="w-4 h-4 text-zinc-400" /> DDL Statement
+                      <FileCode className="w-4 h-4 text-zinc-400" /> Original DDL Statement
                     </h3>
-                    <pre className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 overflow-x-auto">
+                    <pre className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed">
                       {selectedTable.sql}
                     </pre>
                   </div>
@@ -766,7 +594,7 @@ export default function App() {
             )}
 
             {activeTab === 'explain' && explainPlan && (
-              <div className="space-y-4 max-w-4xl">
+              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-4">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-violet-400" />
                   <h3 className="text-sm font-semibold text-white">Execution Plan Hierarchy</h3>
@@ -776,19 +604,11 @@ export default function App() {
                     {explainPlan.text}
                   </pre>
                 )}
-                <div className="mt-4">
-                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Raw Plan Nodes
-                  </h4>
-                  <pre className="p-3 bg-zinc-900/50 border border-zinc-800 rounded text-xs font-mono text-zinc-400 overflow-x-auto">
-                    {JSON.stringify(explainPlan.nodes, null, 2)}
-                  </pre>
-                </div>
               </div>
             )}
 
             {activeTab === 'pragma' && pragmaResult && (
-              <div className="space-y-4 max-w-4xl">
+              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-4">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-400" />
                   <h3 className="text-sm font-semibold text-white">PRAGMA Output</h3>
