@@ -68,7 +68,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       category: 'Action',
       title: 'Open ER Diagram',
       subtitle: 'Interactive Entity-Relationship visualizer',
-      icon: <Layers className="w-4 h-4 text-indigo-400" />,
+      icon: <Layers className="w-4 h-4 text-indigo-500" />,
       action: () => {
         onOpenErDiagram();
         onClose();
@@ -79,7 +79,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       category: 'Action',
       title: 'AI Text-to-SQL Assistant',
       subtitle: 'Generate SQL queries using schema context',
-      icon: <Sparkles className="w-4 h-4 text-amber-400" />,
+      icon: <Sparkles className="w-4 h-4 text-amber-500" />,
       action: () => {
         onOpenAiAssistant?.();
         onClose();
@@ -88,9 +88,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: 'act_designer',
       category: 'Action',
-      title: 'Schema Designer',
-      subtitle: 'Create tables, indexes, alter, or drop objects',
-      icon: <Table className="w-4 h-4 text-emerald-400" />,
+      title: 'Visual Schema Designer',
+      subtitle: 'Create tables, indexes, and run DDL migrations',
+      icon: <Table className="w-4 h-4 text-emerald-500" />,
       action: () => {
         onOpenDesigner();
         onClose();
@@ -99,9 +99,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: 'act_import',
       category: 'Action',
-      title: 'Import CSV / JSON',
-      subtitle: 'Upload and infer types into a new table',
-      icon: <Upload className="w-4 h-4 text-teal-400" />,
+      title: 'Import CSV or JSON',
+      subtitle: 'Parse files and insert data into tables',
+      icon: <Upload className="w-4 h-4 text-teal-500" />,
       action: () => {
         onOpenImport();
         onClose();
@@ -110,37 +110,54 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: 'act_explain',
       category: 'Action',
-      title: 'EXPLAIN Query Plan',
-      subtitle: 'View optimizer hierarchy and index advisor',
-      icon: <Activity className="w-4 h-4 text-violet-400" />,
+      title: 'Explain Query Plan',
+      subtitle: 'Visualize cost tree and index scans',
+      icon: <Activity className="w-4 h-4 text-indigo-500" />,
       action: () => {
         onOpenExplain?.();
         onClose();
       },
     },
     {
-      id: 'act_pragma',
-      category: 'Action',
-      title: 'PRAGMA Integrity & Vacuum Tools',
-      subtitle: 'Run database health checks and optimization',
-      icon: <Sparkles className="w-4 h-4 text-cyan-400" />,
-      action: () => {
-        onOpenPragma?.();
-        onClose();
-      },
-    },
-    {
       id: 'act_theme',
       category: 'Action',
-      title: 'Toggle Theme',
-      subtitle: 'Switch between dark and light modes',
-      icon: <Sun className="w-4 h-4 text-yellow-400" />,
+      title: 'Toggle Color Theme',
+      subtitle: 'Switch between light and dark modes',
+      icon: <Sun className="w-4 h-4 text-amber-500" />,
       action: () => {
         onToggleTheme();
         onClose();
       },
     },
   ];
+
+  if (onOpenPragma) {
+    commands.push({
+      id: 'act_pragma',
+      category: 'Action',
+      title: 'PRAGMA Diagnostics',
+      subtitle: 'Integrity checks, vacuum, and database tuning',
+      icon: <Sparkles className="w-4 h-4 text-amber-500" />,
+      action: () => {
+        onOpenPragma();
+        onClose();
+      },
+    });
+  }
+
+  if (onExportDb) {
+    commands.push({
+      id: 'act_export',
+      category: 'Action',
+      title: 'Download Database Binary',
+      subtitle: 'Export entire .db SQLite file locally',
+      icon: <Download className="w-4 h-4 text-emerald-500" />,
+      action: () => {
+        onExportDb();
+        onClose();
+      },
+    });
+  }
 
   // Append Tables
   (schema?.tables || []).forEach((t) => {
@@ -149,7 +166,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       category: 'Table',
       title: t.name,
       subtitle: `${t.columns.length} columns • ${t.columns.map((c) => c.name).slice(0, 4).join(', ')}...`,
-      icon: <Table className="w-4 h-4 text-indigo-400" />,
+      icon: <Table className="w-4 h-4 text-indigo-500" />,
       action: () => {
         onSelectTable(t);
         onClose();
@@ -164,7 +181,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       category: 'View',
       title: v.name,
       subtitle: 'SQL View definition',
-      icon: <Eye className="w-4 h-4 text-cyan-400" />,
+      icon: <Eye className="w-4 h-4 text-cyan-500" />,
       action: () => {
         onSelectTable(v);
         onClose();
@@ -204,15 +221,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-start justify-center pt-24 p-4 font-sans select-none"
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-24 p-4 font-sans select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden"
+        className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#262e40] rounded-2xl shadow-2xl max-w-xl w-full flex flex-col overflow-hidden font-sans transition-all duration-150"
       >
         {/* Search Bar */}
-        <div className="flex items-center px-4 py-3 border-b border-zinc-800 bg-zinc-950">
-          <Search className="w-4 h-4 text-zinc-400 mr-3" />
+        <div className="flex items-center px-4 py-3.5 border-b border-[#e2e6ee] dark:border-[#222938] bg-[#f8f9fb] dark:bg-[#101319]">
+          <Search className="w-4 h-4 text-[#8c96a8] mr-3" />
           <input
             ref={inputRef}
             type="text"
@@ -223,9 +240,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type a command or table name (Ctrl+K)..."
-            className="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none font-sans"
+            className="w-full bg-transparent text-sm text-[#1b202a] dark:text-[#edf0f6] placeholder-[#8c96a8] focus:outline-none font-sans"
           />
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] text-[#8c96a8]">
             ESC
           </span>
         </div>
@@ -233,7 +250,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Results List */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {filtered.length === 0 ? (
-            <div className="py-8 text-center text-xs text-zinc-500">No matching commands or tables</div>
+            <div className="py-8 text-center text-xs text-[#8c96a8]">No matching commands or tables</div>
           ) : (
             filtered.map((cmd, idx) => {
               const isSelected = idx === selectedIndex;
@@ -242,8 +259,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   key={cmd.id}
                   onClick={cmd.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition ${
-                    isSelected ? 'bg-indigo-600/20 text-white' : 'text-zinc-300 hover:bg-zinc-800/60'
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all duration-150 ${
+                    isSelected
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs'
+                      : 'text-[#3f4756] dark:text-[#c4cad4] hover:bg-black/5 dark:hover:bg-white/[0.04]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -251,17 +270,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     <div className="min-w-0">
                       <div className="text-xs font-semibold truncate flex items-center gap-2">
                         <span>{cmd.title}</span>
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
+                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-md bg-[#eef1f6] dark:bg-[#1f2433] text-[#5f687a] dark:text-[#98a0af]">
                           {cmd.category}
                         </span>
                       </div>
                       {cmd.subtitle && (
-                        <div className="text-[11px] text-zinc-500 truncate">{cmd.subtitle}</div>
+                        <div className="text-[11px] text-[#8c96a8] truncate">{cmd.subtitle}</div>
                       )}
                     </div>
                   </div>
 
-                  {isSelected && <ArrowRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                  {isSelected && <ArrowRight className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                 </div>
               );
             })

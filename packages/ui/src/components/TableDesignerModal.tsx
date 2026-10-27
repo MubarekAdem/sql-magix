@@ -90,10 +90,8 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
   const [dropIndexName, setDropIndexName] = useState<string>('');
   const [dropConfirmText, setDropConfirmText] = useState<string>('');
 
-  // Current selected table metadata
   const currentTableObj = schema?.tables.find((t) => t.name === selectedTable);
 
-  // Auto-generate SQL based on mode
   let activeSql = '';
   switch (designerMode) {
     case 'table':
@@ -187,20 +185,24 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] font-sans">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] font-sans transition-all duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Table className="w-4 h-4 text-indigo-400" />
-            <span className="font-semibold text-sm text-white">Visual Schema Designer</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-zinc-800 text-zinc-400 font-mono">
-              {dialect}
-            </span>
+        <div className="flex items-center justify-between p-4 border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <Table className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-sm text-[#1b202a] dark:text-white">Schema Designer</span>
+              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[#eef1f6] dark:bg-[#1f2433] text-[#5f687a] dark:text-[#98a0af] font-mono">
+                {dialect}
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800"
+            className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -208,63 +210,65 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
 
         {/* Read-Only Warning if restricted */}
         {isReadOnly && (
-          <div className="px-4 py-2 bg-rose-950/40 border-b border-rose-800/60 text-xs text-rose-300 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
             <span>Server is in Read-Only mode. Writing DDL requires --allow-write.</span>
           </div>
         )}
 
-        {/* Mode Selector */}
-        <div className="flex items-center px-4 bg-zinc-950 border-b border-zinc-800">
-          <button
-            onClick={() => setDesignerMode('table')}
-            className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
-              designerMode === 'table'
-                ? 'border-indigo-500 text-indigo-400 font-semibold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            New Table
-          </button>
-          <button
-            onClick={() => setDesignerMode('index')}
-            className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
-              designerMode === 'index'
-                ? 'border-indigo-500 text-indigo-400 font-semibold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            New Index
-          </button>
-          <button
-            onClick={() => setDesignerMode('alter')}
-            className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
-              designerMode === 'alter'
-                ? 'border-indigo-500 text-indigo-400 font-semibold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Alter Table
-          </button>
-          <button
-            onClick={() => setDesignerMode('drop')}
-            className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
-              designerMode === 'drop'
-                ? 'border-rose-500 text-rose-400 font-semibold'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Drop Schema Object
-          </button>
+        {/* Mode Selector Pill Strip */}
+        <div className="p-3 bg-[#f8f9fb] dark:bg-[#101319] border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center p-1 rounded-xl bg-[#eef1f6] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] gap-1">
+            <button
+              onClick={() => setDesignerMode('table')}
+              className={`flex-1 py-1 px-3 text-xs font-medium rounded-lg transition-all duration-150 ${
+                designerMode === 'table'
+                  ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
+              }`}
+            >
+              New Table
+            </button>
+            <button
+              onClick={() => setDesignerMode('index')}
+              className={`flex-1 py-1 px-3 text-xs font-medium rounded-lg transition-all duration-150 ${
+                designerMode === 'index'
+                  ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
+              }`}
+            >
+              New Index
+            </button>
+            <button
+              onClick={() => setDesignerMode('alter')}
+              className={`flex-1 py-1 px-3 text-xs font-medium rounded-lg transition-all duration-150 ${
+                designerMode === 'alter'
+                  ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
+              }`}
+            >
+              Alter Table
+            </button>
+            <button
+              onClick={() => setDesignerMode('drop')}
+              className={`flex-1 py-1 px-3 text-xs font-medium rounded-lg transition-all duration-150 ${
+                designerMode === 'drop'
+                  ? 'bg-rose-500 text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-rose-500'
+              }`}
+            >
+              Drop Object
+            </button>
+          </div>
         </div>
 
-        {/* Designer Viewport */}
+        {/* Designer Viewport Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* NEW TABLE */}
           {designerMode === 'table' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
                   Table Name
                 </label>
                 <input
@@ -272,52 +276,52 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
                   placeholder="e.g. customers, orders"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs text-[#1b202a] dark:text-[#edf0f6] font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
                 />
               </div>
 
               {/* Columns Table */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-zinc-300">Columns</span>
+                  <span className="text-xs font-semibold text-[#1b202a] dark:text-white">Columns</span>
                   <button
                     onClick={handleAddColumn}
-                    className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 py-1 px-2 rounded hover:bg-zinc-800 transition"
+                    className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline py-1 px-2"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Column</span>
                   </button>
                 </div>
 
-                <div className="overflow-hidden border border-zinc-800 rounded-lg">
+                <div className="rounded-xl overflow-hidden border border-[#e2e6ee] dark:border-[#222938]">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400">
+                    <thead className="bg-[#f8f9fb] dark:bg-[#101319] border-b border-[#e2e6ee] dark:border-[#222938] text-[#5f687a] dark:text-[#98a0af]">
                       <tr>
-                        <th className="px-2 py-1.5">Name</th>
-                        <th className="px-2 py-1.5">Type</th>
-                        <th className="px-2 py-1.5 text-center">PK</th>
-                        <th className="px-2 py-1.5 text-center">Auto</th>
-                        <th className="px-2 py-1.5 text-center">Nullable</th>
-                        <th className="px-2 py-1.5">Default</th>
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Type</th>
+                        <th className="px-3 py-2 text-center font-medium">PK</th>
+                        <th className="px-3 py-2 text-center font-medium">Auto</th>
+                        <th className="px-3 py-2 text-center font-medium">Nullable</th>
+                        <th className="px-3 py-2 font-medium">Default</th>
                         <th className="w-8"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-800 bg-zinc-900/60">
+                    <tbody className="divide-y divide-[#e2e6ee] dark:divide-[#222938] bg-white dark:bg-[#151922]">
                       {columns.map((col, idx) => (
-                        <tr key={idx} className="hover:bg-zinc-900">
-                          <td className="p-1">
+                        <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                          <td className="p-1.5">
                             <input
                               type="text"
                               value={col.name}
                               onChange={(e) => handleColumnChange(idx, 'name', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-xs"
+                              className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-md px-2 py-1 text-[#1b202a] dark:text-[#edf0f6] text-xs"
                             />
                           </td>
-                          <td className="p-1">
+                          <td className="p-1.5">
                             <select
                               value={col.type}
                               onChange={(e) => handleColumnChange(idx, 'type', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-indigo-300 text-xs"
+                              className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-md px-2 py-1 text-indigo-600 dark:text-indigo-400 text-xs font-medium"
                             >
                               {COMMON_TYPES.map((t) => (
                                 <option key={t} value={t}>
@@ -326,7 +330,7 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                               ))}
                             </select>
                           </td>
-                          <td className="p-1 text-center">
+                          <td className="p-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={!!col.primaryKey}
@@ -334,7 +338,7 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                               className="rounded text-indigo-600 focus:ring-0"
                             />
                           </td>
-                          <td className="p-1 text-center">
+                          <td className="p-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={!!col.autoIncrement}
@@ -342,7 +346,7 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                               className="rounded text-indigo-600 focus:ring-0"
                             />
                           </td>
-                          <td className="p-1 text-center">
+                          <td className="p-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={col.nullable !== false}
@@ -350,20 +354,20 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                               className="rounded text-indigo-600 focus:ring-0"
                             />
                           </td>
-                          <td className="p-1">
+                          <td className="p-1.5">
                             <input
                               type="text"
-                              placeholder="e.g. 0, NULL"
                               value={col.defaultValue || ''}
                               onChange={(e) => handleColumnChange(idx, 'defaultValue', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-300 text-xs"
+                              placeholder="NULL"
+                              className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-md px-2 py-1 text-[#5f687a] dark:text-[#98a0af] text-xs"
                             />
                           </td>
-                          <td className="p-1 text-center">
+                          <td className="p-1.5 text-center">
                             <button
                               onClick={() => handleRemoveColumn(idx)}
-                              disabled={columns.length <= 1}
-                              className="p-1 text-zinc-500 hover:text-rose-400 disabled:opacity-30 transition"
+                              className="text-[#8c96a8] hover:text-rose-500 p-1 rounded transition"
+                              title="Delete Column"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -381,7 +385,7 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
           {designerMode === 'index' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
                   Target Table
                 </label>
                 <select
@@ -390,7 +394,7 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                     setSelectedTable(e.target.value);
                     setSelectedCols([]);
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs text-[#1b202a] dark:text-[#edf0f6] font-mono focus:outline-none"
                 >
                   {schema?.tables.map((t) => (
                     <option key={t.name} value={t.name}>
@@ -401,63 +405,48 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
                   Index Name
                 </label>
                 <input
                   type="text"
                   value={indexName}
                   onChange={(e) => setIndexName(e.target.value)}
-                  placeholder="idx_table_col"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs text-[#1b202a] dark:text-[#edf0f6] font-mono focus:outline-none"
                 />
               </div>
 
-              {currentTableObj && (
-                <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
-                    Select Columns for Index
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 p-2 bg-zinc-950 border border-zinc-800 rounded-lg max-h-36 overflow-y-auto">
-                    {currentTableObj.columns.map((col) => {
-                      const isChecked = selectedCols.includes(col.name);
-                      return (
-                        <label
-                          key={col.name}
-                          className="flex items-center gap-2 text-xs text-zinc-300 hover:text-white cursor-pointer select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedCols((prev) => [...prev, col.name]);
-                              } else {
-                                setSelectedCols((prev) => prev.filter((c) => c !== col.name));
-                              }
-                            }}
-                            className="rounded text-indigo-600 focus:ring-0"
-                          />
-                          <span className="font-mono">{col.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
+                  Columns to Index
+                </label>
+                <div className="grid grid-cols-2 gap-2 p-3 bg-[#f8f9fb] dark:bg-[#101319] border border-[#e2e6ee] dark:border-[#222938] rounded-xl max-h-48 overflow-y-auto">
+                  {currentTableObj?.columns.map((c) => (
+                    <label key={c.name} className="flex items-center gap-2 text-xs font-mono cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCols.includes(c.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedCols((prev) => [...prev, c.name]);
+                          else setSelectedCols((prev) => prev.filter((col) => col !== c.name));
+                        }}
+                        className="rounded text-indigo-600 focus:ring-0"
+                      />
+                      <span>{c.name}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
+              </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
                 <input
                   type="checkbox"
-                  id="unique-idx"
                   checked={isUniqueIndex}
                   onChange={(e) => setIsUniqueIndex(e.target.checked)}
                   className="rounded text-indigo-600 focus:ring-0"
                 />
-                <label htmlFor="unique-idx" className="text-xs text-zinc-300 cursor-pointer">
-                  Unique Index (enforces uniqueness constraint)
-                </label>
-              </div>
+                <span className="font-medium text-[#1b202a] dark:text-white">UNIQUE Index constraint</span>
+              </label>
             </div>
           )}
 
@@ -465,13 +454,13 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
           {designerMode === 'alter' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
                   Target Table
                 </label>
                 <select
                   value={selectedTable}
                   onChange={(e) => setSelectedTable(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs text-[#1b202a] dark:text-[#edf0f6] font-mono focus:outline-none"
                 >
                   {schema?.tables.map((t) => (
                     <option key={t.name} value={t.name}>
@@ -482,42 +471,45 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
               </div>
 
               <div className="flex gap-2">
-                {(['add_col', 'drop_col', 'rename'] as const).map((act) => (
-                  <button
-                    key={act}
-                    onClick={() => setAlterAction(act)}
-                    className={`px-3 py-1 text-xs rounded border transition capitalize ${
-                      alterAction === act
-                        ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50 font-semibold'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    {act.replace('_', ' ')}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setAlterAction('add_col')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+                    alterAction === 'add_col'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                      : 'border-[#e2e6ee] dark:border-[#262e40] text-[#5f687a] dark:text-[#98a0af]'
+                  }`}
+                >
+                  Add Column
+                </button>
+                <button
+                  onClick={() => setAlterAction('rename')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
+                    alterAction === 'rename'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                      : 'border-[#e2e6ee] dark:border-[#262e40] text-[#5f687a] dark:text-[#98a0af]'
+                  }`}
+                >
+                  Rename Table
+                </button>
               </div>
 
               {alterAction === 'add_col' && (
-                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-300 mb-1">
-                      New Column Name
-                    </label>
+                    <label className="block text-xs text-[#5f687a] dark:text-[#98a0af] mb-1">Column Name</label>
                     <input
                       type="text"
                       value={alterNewCol.name}
                       onChange={(e) => setAlterNewCol((c) => ({ ...c, name: e.target.value }))}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 font-mono"
+                      className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-2.5 py-1.5 text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-zinc-300 mb-1">
-                      Column Type
-                    </label>
+                    <label className="block text-xs text-[#5f687a] dark:text-[#98a0af] mb-1">Column Type</label>
                     <select
                       value={alterNewCol.type}
                       onChange={(e) => setAlterNewCol((c) => ({ ...c, type: e.target.value }))}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-indigo-300 font-mono"
+                      className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-2.5 py-1.5 text-xs font-mono"
                     >
                       {COMMON_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -529,36 +521,15 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                 </div>
               )}
 
-              {alterAction === 'drop_col' && currentTableObj && (
-                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3">
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
-                    Select Column to Drop
-                  </label>
-                  <select
-                    value={alterDropCol || currentTableObj.columns[0]?.name}
-                    onChange={(e) => setAlterDropCol(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-rose-300 font-mono"
-                  >
-                    {currentTableObj.columns.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name} ({c.type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {alterAction === 'rename' && (
-                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3">
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
-                    New Table Name
-                  </label>
+                <div>
+                  <label className="block text-xs text-[#5f687a] dark:text-[#98a0af] mb-1">New Table Name</label>
                   <input
                     type="text"
                     value={alterRenameTable}
                     onChange={(e) => setAlterRenameTable(e.target.value)}
                     placeholder={`${selectedTable}_new`}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-200 font-mono"
+                    className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs font-mono"
                   />
                 </div>
               )}
@@ -568,34 +539,27 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
           {/* DROP SCHEMA OBJECT */}
           {designerMode === 'drop' && (
             <div className="space-y-4">
-              <div className="p-3 bg-rose-950/30 border border-rose-800/60 rounded-lg text-xs text-rose-300 space-y-1">
-                <div className="font-semibold flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-400" /> Caution: Irreversible Action
-                </div>
-                <div>Dropping a table or index deletes data or constraints permanently.</div>
-              </div>
-
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
-                  Object Type to Drop
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
+                  Target Object Type
                 </label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setDropTargetType('table')}
-                    className={`px-3 py-1 text-xs rounded border transition ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
                       dropTargetType === 'table'
-                        ? 'bg-rose-950/50 text-rose-300 border-rose-700 font-semibold'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                        : 'border-[#e2e6ee] dark:border-[#262e40] text-[#5f687a] dark:text-[#98a0af]'
                     }`}
                   >
                     Table
                   </button>
                   <button
                     onClick={() => setDropTargetType('index')}
-                    className={`px-3 py-1 text-xs rounded border transition ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
                       dropTargetType === 'index'
-                        ? 'bg-rose-950/50 text-rose-300 border-rose-700 font-semibold'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                        : 'border-[#e2e6ee] dark:border-[#262e40] text-[#5f687a] dark:text-[#98a0af]'
                     }`}
                   >
                     Index
@@ -604,13 +568,13 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
                   Target Table
                 </label>
                 <select
                   value={selectedTable}
                   onChange={(e) => setSelectedTable(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-rose-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-3 py-1.5 text-xs text-[#1b202a] dark:text-[#edf0f6] font-mono focus:outline-none"
                 >
                   {schema?.tables.map((t) => (
                     <option key={t.name} value={t.name}>
@@ -620,35 +584,16 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
                 </select>
               </div>
 
-              {dropTargetType === 'index' && currentTableObj && (
-                <div>
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">
-                    Select Index to Drop
-                  </label>
-                  <select
-                    value={dropIndexName}
-                    onChange={(e) => setDropIndexName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-rose-300 font-mono focus:outline-none focus:border-rose-500"
-                  >
-                    {(currentTableObj.indexes || []).map((idx) => (
-                      <option key={idx.name} value={idx.name}>
-                        {idx.name} ({idx.columns.join(', ')})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
-                  Type table name <strong className="text-rose-400 font-mono">"{selectedTable}"</strong> to confirm:
+                <label className="block text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
+                  Type table name <strong className="text-rose-500 font-mono">"{selectedTable}"</strong> to confirm deletion:
                 </label>
                 <input
                   type="text"
                   value={dropConfirmText}
                   onChange={(e) => setDropConfirmText(e.target.value)}
                   placeholder={selectedTable}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-rose-300 font-mono focus:outline-none focus:border-rose-500"
+                  className="w-full bg-[#f8f9fb] dark:bg-[#161a24] border border-rose-300 dark:border-rose-800/80 rounded-lg px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 font-mono focus:outline-none"
                 />
               </div>
             </div>
@@ -656,33 +601,34 @@ export const TableDesignerModal: React.FC<TableDesignerModalProps> = ({
 
           {/* Real-time Generated SQL */}
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 mb-1.5">
-              <FileCode className="w-3.5 h-3.5 text-indigo-400" /> Generated SQL Preview
+            <div className="flex items-center gap-1.5 text-xs font-medium text-[#5f687a] dark:text-[#98a0af] mb-1.5">
+              <FileCode className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Generated SQL Preview</span>
             </div>
-            <pre className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-200 overflow-x-auto leading-relaxed">
+            <pre className="p-3 bg-[#f8f9fb] dark:bg-[#0e1117] border border-[#e2e6ee] dark:border-[#222938] rounded-xl text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] overflow-x-auto leading-relaxed">
               {activeSql}
             </pre>
           </div>
 
           {errorMessage && (
-            <div className="p-2.5 rounded bg-rose-950/40 border border-rose-800 text-xs text-rose-300 font-mono">
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 font-mono">
               {errorMessage}
             </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-zinc-800 flex items-center justify-end gap-2 bg-zinc-950/60">
+        <div className="p-4 border-t border-[#e2e6ee] dark:border-[#222938] flex items-center justify-end gap-2.5 bg-[#f8f9fb]/60 dark:bg-[#101319]/60">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition"
+            className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition active:scale-[0.98]"
           >
             Cancel
           </button>
           <button
             onClick={handleExecute}
             disabled={isExecuting || isReadOnly}
-            className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded text-white disabled:opacity-50 transition shadow-sm ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-lg text-white disabled:opacity-50 transition active:scale-[0.98] shadow-2xs ${
               designerMode === 'drop'
                 ? 'bg-rose-600 hover:bg-rose-500'
                 : 'bg-indigo-600 hover:bg-indigo-500'

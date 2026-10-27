@@ -44,7 +44,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlScript);
     setCopied(true);
-    setTimeout(() => setCopied(null as any), 1500);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const handleExecuteCommit = async () => {
@@ -58,19 +58,19 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] font-sans">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] font-sans transition-all duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-white">Review Pending Changes</span>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-950 text-amber-300 border border-amber-800 font-mono">
+        <div className="flex items-center justify-between p-4 border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center gap-2.5">
+            <span className="font-semibold text-sm text-[#1b202a] dark:text-white">Review Pending Changes</span>
+            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 font-mono">
               {changes.length} {changes.length === 1 ? 'change' : 'changes'}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800"
+            className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -78,37 +78,36 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 
         {/* Read-Only Warning Notice if on read-only server */}
         {isReadOnly && (
-          <div className="px-4 py-2 bg-rose-950/40 border-b border-rose-800/60 text-xs text-rose-300 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
             <span>
-              Server connection is in <strong>Read-Only</strong> mode. Committing requires launching
-              with <code className="bg-rose-900/40 px-1 py-0.5 rounded font-mono">--allow-write</code>.
+              Database connection is in <strong>Read-Only</strong> mode. Committing changes requires launching with <code className="bg-rose-100 dark:bg-rose-900/60 px-1 py-0.5 rounded font-mono">--allow-write</code>.
             </span>
           </div>
         )}
 
-        {/* Tabs: Visual Diff vs SQL Script */}
-        <div className="flex items-center justify-between px-4 bg-zinc-950 border-b border-zinc-800">
-          <div className="flex gap-2">
+        {/* Tabs: Visual Diff vs SQL Script with Concentric Pill Style */}
+        <div className="flex items-center justify-between px-4 py-2 bg-[#f8f9fb] dark:bg-[#101319] border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center p-1 rounded-xl bg-[#eef1f6] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] gap-1">
             <button
               onClick={() => setActiveTab('diff')}
-              className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
                 activeTab === 'diff'
-                  ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
               }`}
             >
               Changeset Diff
             </button>
             <button
               onClick={() => setActiveTab('sql')}
-              className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
                 activeTab === 'sql'
-                  ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                  : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
               }`}
             >
-              Generated SQL Script
+              SQL Script
             </button>
           </div>
 
@@ -116,15 +115,15 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
             {activeTab === 'sql' && (
               <button
                 onClick={handleCopySql}
-                className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white py-1 px-2 rounded hover:bg-zinc-800 transition"
+                className="flex items-center gap-1.5 text-xs text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white py-1 px-2.5 rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] transition active:scale-[0.98]"
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied' : 'Copy SQL'}</span>
               </button>
             )}
             <button
               onClick={onDiscardAll}
-              className="text-[11px] text-rose-400 hover:text-rose-300 py-1 px-2 rounded hover:bg-rose-950/40 transition"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 py-1 px-2.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition active:scale-[0.98]"
             >
               Discard All
             </button>
@@ -138,54 +137,54 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
               {changes.map((c) => (
                 <div
                   key={c.id}
-                  className="p-3 bg-zinc-950 border border-zinc-800/80 rounded-lg flex items-center justify-between group hover:border-zinc-700 transition"
+                  className="p-3 bg-[#f8f9fb] dark:bg-[#101319] border border-[#e2e6ee] dark:border-[#222938] rounded-xl flex items-center justify-between group hover:border-[#ccd2df] dark:hover:border-[#38435c] transition-all duration-150"
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     {c.type === 'update-cell' && (
-                      <div className="p-1.5 rounded bg-amber-950/60 text-amber-400 border border-amber-800/60 mt-0.5">
+                      <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 mt-0.5">
                         <Edit2 className="w-3.5 h-3.5" />
                       </div>
                     )}
                     {c.type === 'insert-row' && (
-                      <div className="p-1.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 mt-0.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 mt-0.5">
                         <PlusCircle className="w-3.5 h-3.5" />
                       </div>
                     )}
                     {c.type === 'delete-row' && (
-                      <div className="p-1.5 rounded bg-rose-950/60 text-rose-400 border border-rose-800/60 mt-0.5">
+                      <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 mt-0.5">
                         <Trash2 className="w-3.5 h-3.5" />
                       </div>
                     )}
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-zinc-200">{c.table}</span>
-                        <span className="text-[10px] uppercase font-bold text-zinc-500">
+                        <span className="font-semibold text-[#1b202a] dark:text-[#edf0f6]">{c.table}</span>
+                        <span className="text-[10px] uppercase font-bold text-[#8c96a8]">
                           {c.type.replace('-', ' ')}
                         </span>
                       </div>
 
                       {c.type === 'update-cell' && (
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="text-zinc-400">{c.column}:</span>
-                          <span className="line-through text-rose-400/80">
+                          <span className="text-[#5f687a] dark:text-[#98a0af]">{c.column}:</span>
+                          <span className="line-through text-rose-500/80">
                             {String(c.oldValue ?? 'NULL')}
                           </span>
-                          <span className="text-zinc-500">➜</span>
-                          <span className="text-emerald-400 font-semibold">
+                          <span className="text-[#8c96a8]">➜</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                             {String(c.newValue ?? 'NULL')}
                           </span>
                         </div>
                       )}
 
                       {c.type === 'insert-row' && (
-                        <div className="text-[11px] text-emerald-400/90 truncate max-w-md">
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 truncate max-w-md">
                           {JSON.stringify(c.values)}
                         </div>
                       )}
 
                       {c.type === 'delete-row' && (
-                        <div className="text-[11px] text-rose-400/80 truncate max-w-md">
+                        <div className="text-[11px] text-rose-600 dark:text-rose-400 truncate max-w-md">
                           Row matching PK: {JSON.stringify(c.pkValues)}
                         </div>
                       )}
@@ -194,7 +193,7 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 
                   <button
                     onClick={() => onRevertChange(c.id)}
-                    className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition"
+                    className="p-1.5 text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] rounded-lg transition"
                     title="Revert Change"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -205,28 +204,28 @@ export const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
           )}
 
           {activeTab === 'sql' && (
-            <pre className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-200 overflow-x-auto leading-relaxed">
+            <pre className="p-4 bg-[#f8f9fb] dark:bg-[#0e1117] border border-[#e2e6ee] dark:border-[#222938] rounded-xl text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] overflow-x-auto leading-relaxed">
               {sqlScript}
             </pre>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-          <span className="text-xs text-zinc-400">
-            {changes.length} operations will be executed in a single atomic transaction.
+        <div className="p-4 border-t border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between bg-[#f8f9fb]/60 dark:bg-[#101319]/60">
+          <span className="text-xs text-[#5f687a] dark:text-[#98a0af]">
+            {changes.length} operations will execute in an atomic transaction.
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-xs rounded border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition"
+              className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition active:scale-[0.98]"
             >
               Continue Editing
             </button>
             <button
               onClick={handleExecuteCommit}
               disabled={isCommitting || isReadOnly || changes.length === 0}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 transition shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white disabled:opacity-50 transition shadow-2xs"
             >
               <CheckCircle className="w-3.5 h-3.5" />
               <span>{isCommitting ? 'Committing...' : 'Commit Changes'}</span>

@@ -87,111 +87,108 @@ export const PragmaToolsModal: React.FC<PragmaToolsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans select-none">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans select-none">
+      <div className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] transition-all duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="font-semibold text-sm text-white">SQLite PRAGMA Diagnostic Suite</span>
+        <div className="flex items-center justify-between p-4 border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-sm text-[#1b202a] dark:text-white">PRAGMA Diagnostics</span>
+              <span className="ml-2 text-[10px] uppercase font-mono px-2 py-0.5 rounded-md bg-[#eef1f6] dark:bg-[#1f2433] text-[#5f687a] dark:text-[#98a0af]">
+                SQLite Only
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-1 overflow-hidden divide-x divide-zinc-800">
-          {/* Actions List */}
-          <div className="w-72 overflow-y-auto p-2 space-y-1.5 bg-zinc-950/60">
-            {PRAGMA_COMMANDS.map((act) => (
-              <button
-                key={act.command}
-                onClick={() => handleRun(act)}
-                className={`w-full text-left p-2.5 rounded-lg transition ${
-                  selectedAction.command === act.command
-                    ? 'bg-amber-950/40 border border-amber-700/60 text-white'
-                    : 'text-zinc-300 hover:bg-zinc-900 border border-transparent'
-                }`}
+        {/* Content: Actions List & Execution Result */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="grid grid-cols-1 gap-2.5">
+            {PRAGMA_COMMANDS.map((cmd) => (
+              <div
+                key={cmd.name}
+                className="p-3.5 bg-[#f8f9fb] dark:bg-[#101319] border border-[#e2e6ee] dark:border-[#222938] rounded-xl flex items-center justify-between gap-3 group hover:border-indigo-400 dark:hover:border-indigo-600 transition-all duration-150"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold">{act.name}</span>
-                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
-                    {act.badge}
-                  </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-xs text-[#1b202a] dark:text-[#edf0f6]">{cmd.name}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-[#eef1f6] dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af]">
+                      {cmd.badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#5f687a] dark:text-[#98a0af] leading-relaxed">
+                    {cmd.description}
+                  </p>
+                  <code className="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">
+                    {cmd.command}
+                  </code>
                 </div>
-                <div className="text-[11px] text-zinc-500 line-clamp-2">{act.description}</div>
-              </button>
+
+                <button
+                  onClick={() => handleRun(cmd)}
+                  disabled={isRunning}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#1b202a] dark:text-[#edf0f6] hover:bg-[#f1f3f7] dark:hover:bg-[#202534] transition active:scale-[0.98] shrink-0"
+                >
+                  Run
+                </button>
+              </div>
             ))}
           </div>
 
-          {/* Results Viewport */}
-          <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto space-y-4">
-            <div className="space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold text-white">{selectedAction.name}</h3>
-                <code className="text-xs text-amber-400 font-mono mt-1 block">
-                  {selectedAction.command}
-                </code>
-              </div>
-
-              {isRunning && (
-                <div className="py-8 text-center text-xs text-zinc-400 animate-pulse font-mono">
-                  Executing {selectedAction.command}...
-                </div>
-              )}
-
-              {error && (
-                <div className="p-3 rounded bg-rose-950/40 border border-rose-800 text-xs text-rose-300 font-mono">
-                  {error}
-                </div>
-              )}
-
-              {result && (
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-zinc-400">Execution Output:</span>
-                  <div className="overflow-auto max-h-64 border border-zinc-800 rounded-lg">
-                    <table className="w-full text-left border-collapse font-mono text-xs">
-                      <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400">
-                        <tr>
-                          {result.columns.map((c, i) => (
-                            <th key={i} className="px-3 py-1.5 font-medium">
-                              {c.name}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800">
-                        {result.rows.map((row, rIdx) => (
-                          <tr key={rIdx} className="hover:bg-zinc-900">
-                            {result.columns.map((c, cIdx) => (
-                              <td key={cIdx} className="px-3 py-1 text-zinc-200">
-                                {String((row as any)[c.name])}
-                              </td>
-                            ))}
-                          </tr>
+          {/* Results Block */}
+          {result && (
+            <div className="p-3.5 bg-[#f8f9fb] dark:bg-[#101319] border border-[#e2e6ee] dark:border-[#222938] rounded-xl space-y-2">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Result: {selectedAction.name} ({result.rowCount} rows)</span>
+              </span>
+              <div className="rounded-lg border border-[#e2e6ee] dark:border-[#222938] overflow-hidden">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-white dark:bg-[#161a24] border-b border-[#e2e6ee] dark:border-[#222938] text-[#5f687a] dark:text-[#98a0af]">
+                    <tr>
+                      {result.columns.map((c) => (
+                        <th key={c.name} className="px-3 py-2 font-medium">{c.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e2e6ee] dark:divide-[#222938] bg-white dark:bg-[#0c0e14]">
+                    {result.rows.map((r, i) => (
+                      <tr key={i}>
+                        {result.columns.map((c) => (
+                          <td key={c.name} className="px-3 py-1.5 text-[#1b202a] dark:text-[#edf0f6]">{String(r[c.name])}</td>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          )}
 
-            <div className="flex justify-end pt-2 border-t border-zinc-800">
-              <button
-                onClick={() => handleRun(selectedAction)}
-                disabled={isRunning}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40 transition shadow-sm"
-              >
-                <Play className="w-3.5 h-3.5" />
-                <span>Re-run Command</span>
-              </button>
+          {error && (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 font-mono">
+              {error}
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[#e2e6ee] dark:border-[#222938] flex justify-end bg-[#f8f9fb]/60 dark:bg-[#101319]/60">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition active:scale-[0.98]"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

@@ -37,6 +37,10 @@ import {
   Plus,
   Share2,
   Check,
+  ChevronDown,
+  Wrench,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { SchemaBrowser } from './components/SchemaBrowser';
 import { SqlEditor, type QueryHistoryItem } from './components/SqlEditor';
@@ -79,6 +83,7 @@ export default function App() {
   const [historyList, setHistoryList] = useState<QueryHistoryItem[]>([]);
   const [schemasList, setSchemasList] = useState<string[]>([]);
   const [activeSchema, setActiveSchema] = useState<string>('public');
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState<boolean>(false);
 
   // Phase 5: Pending Changes & Undo/Redo & Modals State
   const [changes, setChanges] = useState<ChangeItem[]>([]);
@@ -105,6 +110,15 @@ export default function App() {
   const [showPragmaModal, setShowPragmaModal] = useState<boolean>(false);
   const [showAttachModal, setShowAttachModal] = useState<boolean>(false);
   const [sharedCopied, setSharedCopied] = useState<boolean>(false);
+
+  // Apply dark mode class to <html> for Tailwind v4 and CSS variables
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   // Startup demo database & restore session preferences
   useEffect(() => {
@@ -158,58 +172,84 @@ export default function App() {
         CREATE TABLE orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           customer_id INTEGER NOT NULL,
-          total_amount REAL NOT NULL,
-          status TEXT DEFAULT 'pending',
           order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+          total_amount REAL NOT NULL,
+          status TEXT CHECK(status IN ('pending', 'completed', 'shipped', 'cancelled')) DEFAULT 'pending',
           FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
         );
 
-        CREATE INDEX idx_orders_customer ON orders(customer_id);
+        CREATE TABLE order_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          product_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_price REAL NOT NULL,
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+        );
 
-        CREATE VIEW v_customer_orders AS
-          SELECT c.id, c.name, c.email, COUNT(o.id) as total_orders, IFNULL(SUM(o.total_amount), 0) as total_spent
-          FROM customers c
-          LEFT JOIN orders o ON c.id = o.customer_id
-          GROUP BY c.id;
+        CREATE VIEW customer_order_summary AS
+        SELECT 
+          c.id AS customer_id,
+          c.name AS customer_name,
+          c.email,
+          COUNT(o.id) AS total_orders,
+          COALESCE(SUM(o.total_amount), 0.0) AS lifetime_spent
+        FROM customers c
+        LEFT JOIN orders o ON c.id = o.customer_id
+        GROUP BY c.id;
 
-        -- Populate initial mock data
+        CREATE TRIGGER update_customer_balance AFTER INSERT ON orders
+        BEGIN
+          UPDATE customers SET balance = balance + NEW.total_amount WHERE id = NEW.customer_id;
+        END;
+
         INSERT INTO categories (name, description) VALUES
-          ('Electronics', 'Gadgets, components, and devices'),
-          ('Books', 'Technical and non-technical books'),
-          ('Office Supplies', 'Desk accessories and stationary');
+          ('Electronics', 'Smartphones, laptops, and consumer gadgets'),
+          ('Office Supplies', 'Ergonomic chairs, desks, stationery'),
+          ('Audio', 'Noise-canceling headphones, monitors, microphones');
 
         INSERT INTO customers (name, email, country, balance) VALUES
-          ('Alice Walker', 'alice@walker.org', 'US', 250.00),
-          ('Bob Vance', 'bob@vancerefrigeration.com', 'US', 410.50),
-          ('Carlos Mendez', 'carlos@mendez.es', 'ES', 89.20),
-          ('Devi Patel', 'devi@patel.in', 'IN', 1200.00),
-          ('Elena Rostova', 'elena@rostova.ru', 'DE', 0.00);
+          ('Sarah Jenkins', 'sarah.j@example.com', 'US', 249.50),
+          ('Alexandre Dumas', 'alex.dumas@france.fr', 'FR', 0.00),
+          ('Kenji Takahashi', 'kenji.t@tokyo.jp', 'JP', 1250.75),
+          ('Elena Rostova', 'elena.rostova@berlin.de', 'DE', 89.20),
+          ('Carlos Mendez', 'carlos.m@buenosaires.ar', 'AR', 415.00);
 
         INSERT INTO products (name, category_id, sku, price, stock_qty) VALUES
-          ('Mechanical Keyboard (Cherry MX)', 1, 'KB-MECH-01', 129.99, 45),
-          ('4K UltraHD Monitor 27"', 1, 'MON-4K-27', 349.50, 18),
-          ('Designing Data-Intensive Applications', 2, 'BOOK-DDIA-01', 49.99, 120),
-          ('Ergonomic Mouse', 1, 'MSE-ERGO-02', 59.99, 60),
-          ('Heavy-Duty Desk Mat', 3, 'MAT-DESK-XL', 24.95, 200);
+          ('Mechanical Keyboard (Cherry Brown)', 1, 'KB-MECH-BR', 129.99, 45),
+          ('Ultra-wide 34" Curved Monitor', 1, 'MON-34-UW', 599.00, 18),
+          ('Studio Reference Headphones', 3, 'AUD-REF-80', 189.50, 32),
+          ('Standing Desk Converter', 2, 'DSK-CONV-01', 220.00, 12),
+          ('USB-C 10-in-1 Hub', 1, 'HUB-USBC-10', 49.99, 120);
 
         INSERT INTO orders (customer_id, total_amount, status) VALUES
-          (1, 179.98, 'completed'),
-          (1, 49.99, 'completed'),
-          (2, 349.50, 'processing'),
-          (3, 129.99, 'shipped'),
-          (4, 409.49, 'completed');
+          (1, 129.99, 'completed'),
+          (1, 119.51, 'shipped'),
+          (3, 1250.75, 'pending'),
+          (5, 415.00, 'completed');
+
+        INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES
+          (1, 1, 1, 129.99),
+          (2, 5, 2, 49.99),
+          (3, 2, 2, 599.00),
+          (4, 4, 1, 220.00),
+          (4, 3, 1, 189.50);
       `);
 
-      const introspected = await engine.getSchema();
+      const schemaData = await engine.getSchema();
       setAdapter(engine);
-      setSchema(introspected);
+      setSchema(schemaData);
       setDbName('sample_store.sqlite');
+      setChanges([]);
+      setUndoStack([]);
+      setRedoStack([]);
 
-      const initialTable = introspected.tables.find((t) => t.name === 'customers') || introspected.tables[0];
-      setSelectedTable(initialTable);
-
-      const initialRes = await engine.query('SELECT * FROM customers LIMIT 50;');
-      setQueryResult(initialRes);
+      if (schemaData.tables.length > 0) {
+        setSelectedTable(schemaData.tables[1]); // Default to customers
+        const res = await engine.query('SELECT * FROM customers LIMIT 100;');
+        setQueryResult(res);
+      }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
@@ -225,18 +265,18 @@ export default function App() {
       const engine = new SqliteEngine({ buffer });
       await engine.init();
 
-      const introspected = await engine.getSchema();
+      const schemaData = await engine.getSchema();
       setAdapter(engine);
-      setSchema(introspected);
+      setSchema(schemaData);
       setDbName(file.name);
       setChanges([]);
       setUndoStack([]);
       setRedoStack([]);
 
-      if (introspected.tables.length > 0) {
-        const first = introspected.tables[0];
-        setSelectedTable(first);
-        const res = await engine.query(`SELECT * FROM ${engine.quoteIdent(first.name)} LIMIT 100;`);
+      if (schemaData.tables.length > 0) {
+        const firstTable = schemaData.tables[0];
+        setSelectedTable(firstTable);
+        const res = await engine.query(`SELECT * FROM ${engine.quoteIdent(firstTable.name)} LIMIT 100;`);
         setQueryResult(res);
       } else {
         setSelectedTable(null);
@@ -254,14 +294,13 @@ export default function App() {
       if (!adapter) return;
       setIsLoading(true);
       setErrorMessage(null);
-
       const start = Date.now();
       try {
         const res = await adapter.query(sql);
         setQueryResult(res);
         setActiveTab('grid');
 
-        // Record query history
+        // Add to history
         setHistoryList((prev) => [
           {
             id: `h_${Date.now()}`,
@@ -452,11 +491,10 @@ export default function App() {
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
         if (e.shiftKey) {
-          e.preventDefault();
           handleRedo();
         } else {
-          e.preventDefault();
           handleUndo();
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
@@ -464,6 +502,7 @@ export default function App() {
         handleRedo();
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
@@ -471,7 +510,6 @@ export default function App() {
   const handleCellEdit = useCallback(
     (row: Record<string, unknown>, colName: string, oldValue: unknown, newValue: unknown) => {
       if (!selectedTable) return;
-
       const pkCols = selectedTable.columns.filter((c) => c.primaryKey);
       const pkValues: Record<string, unknown> = {};
       for (const pk of pkCols) {
@@ -487,7 +525,6 @@ export default function App() {
         column: colName,
         oldValue,
         newValue,
-        row,
       };
 
       pushChanges([...changes, change]);
@@ -497,10 +534,10 @@ export default function App() {
 
   const handleAddRow = useCallback(() => {
     if (!selectedTable) return;
-    const newValues: Record<string, unknown> = {};
-    for (const c of selectedTable.columns) {
-      if (c.autoIncrement) continue;
-      newValues[c.name] = c.defaultValue || (c.nullable ? null : '');
+    const initialValues: Record<string, unknown> = {};
+    for (const col of selectedTable.columns) {
+      if (col.autoIncrement) continue;
+      initialValues[col.name] = col.defaultValue ?? null;
     }
 
     const change: InsertRowChange = {
@@ -508,10 +545,11 @@ export default function App() {
       table: selectedTable.name,
       type: 'insert-row',
       timestamp: Date.now(),
-      values: newValues,
+      values: initialValues,
     };
 
     pushChanges([...changes, change]);
+    setShowPendingPanel(true);
   }, [selectedTable, changes, pushChanges]);
 
   const handleDeleteRow = useCallback(
@@ -568,7 +606,6 @@ export default function App() {
       setRedoStack([]);
       setShowPendingPanel(false);
 
-      // Refresh current table view
       if (selectedTable) {
         const res = await adapter.query(
           `SELECT * FROM ${adapter.quoteIdent(selectedTable.name)} LIMIT 100;`
@@ -631,179 +668,206 @@ export default function App() {
   const isReadOnly = capabilities?.readOnly ?? false;
 
   return (
-    <div
-      className={`flex flex-col h-screen ${
-        theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'
-      } font-sans`}
-    >
-      {/* Top Header Bar */}
-      <header className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
+    <div className="flex flex-col h-screen bg-[#f8f9fb] dark:bg-[#0f1218] text-[#1b202a] dark:text-[#edf0f6] font-sans antialiased overflow-hidden select-none">
+      {/* Robi's Best-Practice Header */}
+      <header className="h-14 px-4 bg-white/90 dark:bg-[#141822]/95 backdrop-blur-md border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between shrink-0 z-30 transition-colors duration-150">
+        {/* Left: Brand & Database Identity */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen((prev) => !prev)}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-            title="Toggle Sidebar"
+            className="p-1.5 rounded-lg text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] active:scale-[0.98] transition-all duration-150"
+            title="Toggle Sidebar (Ctrl+B)"
           >
-            {sidebarOpen ? (
-              <PanelLeftClose className="w-4 h-4" />
-            ) : (
-              <PanelLeftOpen className="w-4 h-4" />
-            )}
+            {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+          <div className="flex items-center gap-3">
+            {/* Concentric App Icon Container */}
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <Database className="w-4 h-4" />
             </div>
-            <div>
+
+            <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm tracking-tight text-white">sql-magic</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+                <span className="font-semibold text-sm tracking-tight text-[#1b202a] dark:text-white">
+                  sql-magic
+                </span>
+                <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                   Studio
                 </span>
                 {isReadOnly && (
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800">
+                  <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                     Read-Only
                   </span>
                 )}
               </div>
-              <div className="text-xs text-zinc-400 flex items-center gap-2 font-mono">
-                <span className="truncate max-w-[180px]" title={dbName}>
+              <div className="flex items-center gap-2 text-xs text-[#5f687a] dark:text-[#98a0af] font-mono">
+                <span className="truncate max-w-[200px]" title={dbName}>
                   {dbName}
                 </span>
                 <span>•</span>
-                <span className="text-emerald-400 capitalize">{adapter?.dialect}</span>
+                <span className="capitalize text-emerald-600 dark:text-emerald-400 font-medium">
+                  {adapter?.dialect}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Global Command Palette Search Pill */}
+        {/* Center: Command Palette Trigger with Micro-Interaction */}
         <button
           onClick={() => setShowCommandPalette(true)}
-          className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition w-64 justify-between"
+          className="hidden md:flex items-center justify-between w-72 px-3 py-1.5 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] text-xs text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:border-[#ccd2df] dark:hover:border-[#38435c] transition-all duration-150 active:scale-[0.99] group shadow-2xs"
         >
-          <div className="flex items-center gap-1.5 text-xs">
-            <Search className="w-3.5 h-3.5" />
-            <span>Search or command...</span>
+          <div className="flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-[#8c96a8] group-hover:text-indigo-500 transition-colors" />
+            <span>Search tables or run command...</span>
           </div>
-          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-500">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white dark:bg-[#121620] border border-[#d8dee8] dark:border-[#222938] text-[#8c96a8]">
             Ctrl+K
           </span>
         </button>
 
-        {/* Dynamic Capability Badges & Controls */}
+        {/* Right: Grouped Actions */}
         <div className="flex items-center gap-2">
-          {/* ER Diagram Button */}
-          <button
-            onClick={() => setShowErDiagram(true)}
-            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
-            title="Open Interactive ER Diagram"
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span>ER Diagram</span>
-          </button>
-
-          {/* AI Text-to-SQL Assistant */}
-          <button
-            onClick={() => setShowAiAssistant(true)}
-            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-800/60 flex items-center gap-1.5 transition"
-            title="AI Text-to-SQL Assistant"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>AI Assistant</span>
-          </button>
-
-          {/* Snippets Button */}
-          <button
-            onClick={() => setShowSnippetsModal(true)}
-            className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
-            title="Saved SQL Recipes & Snippets"
-          >
-            <Bookmark className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Snippets</span>
-          </button>
-
-          {/* Schema Designer Button */}
-          <button
-            onClick={() => {
-              setDesignerInitialMode('table');
-              setDesignerInitialTable(selectedTable?.name);
-              setShowTableDesigner(true);
-            }}
-            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
-            title="Open Visual Schema Designer"
-          >
-            <Table className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Designer</span>
-          </button>
-
-          {/* Import CSV / JSON Button */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center gap-1.5 transition"
-            title="Import CSV or JSON data"
-          >
-            <Upload className="w-3.5 h-3.5 text-teal-400" />
-            <span>Import</span>
-          </button>
-
-          {/* Attach secondary SQLite database */}
-          {adapter?.dialect === 'sqlite' && (
+          {/* Exploration Segment */}
+          <div className="flex items-center p-0.5 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40]">
             <button
-              onClick={() => setShowAttachModal(true)}
-              className="px-2 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 flex items-center gap-1 transition"
-              title="Attach secondary database"
+              onClick={() => setShowAiAssistant(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 dark:hover:bg-amber-950/40 transition-all duration-150 active:scale-[0.98]"
+              title="AI Text-to-SQL Assistant"
             >
-              <Database className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Attach</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>AI</span>
             </button>
-          )}
 
-          {capabilities?.exportDatabase && (
             <button
-              onClick={handleExportDatabase}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-              title="Download entire SQLite database binary"
+              onClick={() => setShowErDiagram(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-white dark:hover:bg-white/[0.08] transition-all duration-150 active:scale-[0.98]"
+              title="Interactive ER Diagram"
             >
-              <Download className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Export .db</span>
+              <Layers className="w-3.5 h-3.5 text-indigo-500" />
+              <span>ER Diagram</span>
             </button>
-          )}
+
+            <button
+              onClick={() => {
+                setDesignerInitialMode('table');
+                setDesignerInitialTable(selectedTable?.name);
+                setShowTableDesigner(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-white dark:hover:bg-white/[0.08] transition-all duration-150 active:scale-[0.98]"
+              title="Visual Schema Designer"
+            >
+              <Table className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Designer</span>
+            </button>
+          </div>
+
+          {/* Tools Menu Dropdown / Buttons */}
+          <div className="relative">
+            <button
+              onClick={() => setToolsDropdownOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition-all duration-150 active:scale-[0.98]"
+            >
+              <Wrench className="w-3.5 h-3.5 text-[#5f687a] dark:text-[#98a0af]" />
+              <span>Tools</span>
+              <ChevronDown className="w-3 h-3 text-[#8c96a8]" />
+            </button>
+
+            {toolsDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setToolsDropdownOpen(false)}
+                />
+                <div className="absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] shadow-lg dark:shadow-none p-1.5 z-50 flex flex-col gap-0.5 font-sans">
+                  <button
+                    onClick={() => {
+                      setShowImportModal(true);
+                      setToolsDropdownOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-2.5 py-2 text-xs rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-black/5 dark:hover:bg-white/[0.06] text-left transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-teal-500" />
+                    <span>Import CSV / JSON</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowSnippetsModal(true);
+                      setToolsDropdownOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-2.5 py-2 text-xs rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-black/5 dark:hover:bg-white/[0.06] text-left transition-colors"
+                  >
+                    <Bookmark className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Saved Snippets</span>
+                  </button>
+
+                  {adapter?.dialect === 'sqlite' && (
+                    <button
+                      onClick={() => {
+                        setShowAttachModal(true);
+                        setToolsDropdownOpen(false);
+                      }}
+                      className="flex items-center gap-2 px-2.5 py-2 text-xs rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-black/5 dark:hover:bg-white/[0.06] text-left transition-colors"
+                    >
+                      <Database className="w-3.5 h-3.5 text-sky-500" />
+                      <span>Attach Secondary DB</span>
+                    </button>
+                  )}
+
+                  {capabilities?.exportDatabase && (
+                    <button
+                      onClick={() => {
+                        handleExportDatabase();
+                        setToolsDropdownOpen(false);
+                      }}
+                      className="flex items-center gap-2 px-2.5 py-2 text-xs rounded-lg text-[#3f4756] dark:text-[#c4cad4] hover:bg-black/5 dark:hover:bg-white/[0.06] text-left transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Download .db File</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Share Query Button */}
           <button
             onClick={handleShareQuery}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
-            title="Share read-only query link (schema & query only, never data)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition-all duration-150 active:scale-[0.98]"
+            title="Copy shareable link"
           >
             {sharedCopied ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Link Copied</span>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
               </>
             ) : (
               <>
-                <Share2 className="w-3.5 h-3.5 text-zinc-400" />
+                <Share2 className="w-3.5 h-3.5 text-[#5f687a] dark:text-[#98a0af]" />
                 <span>Share</span>
               </>
             )}
           </button>
 
+          {/* File Picker */}
           <FileLoader onLoad={handleFileLoad} isLoading={isLoading} />
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle Button */}
           <button
             onClick={handleToggleTheme}
-            className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800 transition"
-            title="Toggle Theme"
+            className="p-1.5 rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-[#f1f3f7] dark:hover:bg-[#222938] transition-all duration-150 active:scale-[0.95]"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
           </button>
         </div>
       </header>
 
-      {/* Main Workspace */}
+      {/* Main Workspace Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Collapsible Schema Browser Sidebar */}
         {sidebarOpen && (
@@ -826,8 +890,8 @@ export default function App() {
           />
         )}
 
-        {/* Center Canvas */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Center Canvas Area */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-[#f8f9fb] dark:bg-[#0f1218]">
           {/* CodeMirror 6 SQL Editor */}
           <SqlEditor
             schema={schema}
@@ -839,32 +903,41 @@ export default function App() {
 
           {/* Error Banner */}
           {errorMessage && (
-            <div className="px-4 py-2 bg-rose-950/60 border-b border-rose-800 text-xs text-rose-300 flex items-center gap-2 font-mono">
-              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-              <span className="truncate">{errorMessage}</span>
+            <div className="px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between font-mono animate-in fade-in">
+              <div className="flex items-center gap-2 truncate">
+                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="truncate">{errorMessage}</span>
+              </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-xs text-rose-600 dark:text-rose-400 hover:underline px-2 py-0.5"
+              >
+                Dismiss
+              </button>
             </div>
           )}
 
-          {/* Navigation Viewport Tabs */}
-          <div className="flex items-center justify-between px-4 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
-            <div className="flex gap-2">
+          {/* Segmented Viewport Navigation Bar */}
+          <div className="h-11 px-4 bg-white/70 dark:bg-[#141822]/80 backdrop-blur-sm border-b border-[#e2e6ee] dark:border-[#222938] flex items-center justify-between shrink-0 select-none">
+            {/* Concentric Pill Tab Switcher */}
+            <div className="flex items-center p-1 rounded-xl bg-[#f1f3f7] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] gap-1">
               <button
                 onClick={() => setActiveTab('grid')}
-                className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
                   activeTab === 'grid'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                    : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
                 }`}
               >
-                Data Grid {queryResult ? `(${queryResult.rowCount} rows)` : ''}
+                Data Grid {queryResult ? `(${queryResult.rowCount})` : ''}
               </button>
 
               <button
                 onClick={() => setActiveTab('schema')}
-                className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
                   activeTab === 'schema'
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                    : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
                 }`}
               >
                 Schema Inspector {selectedTable ? `(${selectedTable.name})` : ''}
@@ -876,10 +949,10 @@ export default function App() {
                     runExplainPlan();
                     setActiveTab('explain');
                   }}
-                  className={`py-2 px-3 text-xs font-medium border-b-2 transition ${
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition-all duration-150 ${
                     activeTab === 'explain'
-                      ? 'border-indigo-500 text-indigo-400'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white shadow-2xs'
+                      : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white'
                   }`}
                 >
                   EXPLAIN Plan
@@ -889,17 +962,23 @@ export default function App() {
               {capabilities?.pragma && (
                 <button
                   onClick={() => setShowPragmaModal(true)}
-                  className="py-2 px-3 text-xs font-medium border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition"
+                  className="px-3 py-1 text-xs font-medium rounded-lg text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition-all duration-150"
                 >
-                  PRAGMA Diagnostics
+                  PRAGMA Tools
                 </button>
               )}
             </div>
 
+            {/* Execution Metrics */}
             {queryResult && (
-              <span className="text-[11px] text-zinc-500 font-mono">
-                {queryResult.executionTimeMs}ms • {queryResult.rowCount} rows
-              </span>
+              <div className="flex items-center gap-2 text-xs text-[#5f687a] dark:text-[#98a0af] font-mono">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-emerald-500" />
+                  {queryResult.executionTimeMs} ms
+                </span>
+                <span>•</span>
+                <span>{queryResult.rowCount.toLocaleString()} rows</span>
+              </div>
             )}
           </div>
 
@@ -939,47 +1018,65 @@ export default function App() {
             )}
 
             {activeTab === 'schema' && selectedTable && (
-              <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                    <Table className="w-4 h-4 text-indigo-400" />
-                    Columns for {selectedTable.name}
-                  </h3>
-                  <div className="overflow-hidden border border-zinc-800 rounded-lg">
+              <div className="h-full overflow-y-auto p-6 max-w-5xl mx-auto space-y-6 font-sans">
+                {/* Table Header Card */}
+                <div className="rounded-2xl p-4 bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938]">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/15 text-indigo-500 flex items-center justify-center">
+                        <Table className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-semibold text-[#1b202a] dark:text-white">
+                          {selectedTable.name}
+                        </h2>
+                        <span className="text-xs text-[#5f687a] dark:text-[#98a0af]">
+                          {selectedTable.columns.length} columns • {selectedTable.indexes?.length || 0} indexes
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Concentric Columns Grid Table */}
+                  <div className="rounded-xl overflow-hidden border border-[#e2e6ee] dark:border-[#222938]">
                     <table className="w-full text-left border-collapse text-xs">
-                      <thead className="bg-zinc-900 border-b border-zinc-800 font-medium text-zinc-300">
+                      <thead className="bg-[#f8f9fb] dark:bg-[#1a1f2c] border-b border-[#e2e6ee] dark:border-[#222938] font-medium text-[#5f687a] dark:text-[#98a0af]">
                         <tr>
-                          <th className="px-3 py-2">Column</th>
-                          <th className="px-3 py-2">Type</th>
-                          <th className="px-3 py-2">Primary Key</th>
-                          <th className="px-3 py-2">Nullable</th>
-                          <th className="px-3 py-2">Default</th>
+                          <th className="px-4 py-2.5">Column</th>
+                          <th className="px-4 py-2.5">Data Type</th>
+                          <th className="px-4 py-2.5">Primary Key</th>
+                          <th className="px-4 py-2.5">Nullable</th>
+                          <th className="px-4 py-2.5">Default Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-800 font-mono">
+                      <tbody className="divide-y divide-[#e2e6ee] dark:divide-[#222938] font-mono">
                         {selectedTable.columns.map((c) => (
-                          <tr key={c.name} className="hover:bg-zinc-900/30">
-                            <td className="px-3 py-2 font-semibold text-zinc-100 flex items-center gap-1.5">
-                              {c.primaryKey && <Key className="w-3 h-3 text-amber-400" />}
-                              {c.name}
+                          <tr key={c.name} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                            <td className="px-4 py-2.5 font-semibold text-[#1b202a] dark:text-white flex items-center gap-2">
+                              {c.primaryKey && <Key className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                              <span>{c.name}</span>
                             </td>
-                            <td className="px-3 py-2 text-indigo-400">{c.type}</td>
-                            <td className="px-3 py-2">
+                            <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-medium">
+                              {c.type}
+                            </td>
+                            <td className="px-4 py-2.5">
                               {c.primaryKey ? (
-                                <span className="text-amber-400 font-bold">YES</span>
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                                  PRIMARY KEY
+                                </span>
                               ) : (
-                                <span className="text-zinc-600">NO</span>
+                                <span className="text-[#8c96a8] dark:text-[#525b6d]">—</span>
                               )}
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-4 py-2.5">
                               {c.nullable ? (
-                                <span className="text-emerald-400">NULL</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">NULL</span>
                               ) : (
-                                <span className="text-rose-400">NOT NULL</span>
+                                <span className="text-[#5f687a] dark:text-[#98a0af]">NOT NULL</span>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-zinc-400">
-                              {c.defaultValue || <span className="text-zinc-600 italic">none</span>}
+                            <td className="px-4 py-2.5 text-[#5f687a] dark:text-[#98a0af]">
+                              {c.defaultValue || <span className="italic text-[#8c96a8]">none</span>}
                             </td>
                           </tr>
                         ))}
@@ -988,30 +1085,31 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Foreign Keys Card */}
                 {selectedTable.foreignKeys && selectedTable.foreignKeys.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                      <Key className="w-4 h-4 text-amber-400" /> Foreign Keys
+                  <div className="rounded-2xl p-4 bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938]">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#1b202a] dark:text-white">
+                      <Key className="w-4 h-4 text-amber-500" /> Foreign Key Relations
                     </h3>
-                    <div className="overflow-hidden border border-zinc-800 rounded-lg">
+                    <div className="rounded-xl overflow-hidden border border-[#e2e6ee] dark:border-[#222938]">
                       <table className="w-full text-left border-collapse text-xs font-mono">
-                        <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-300">
+                        <thead className="bg-[#f8f9fb] dark:bg-[#1a1f2c] border-b border-[#e2e6ee] dark:border-[#222938] text-[#5f687a] dark:text-[#98a0af]">
                           <tr>
-                            <th className="px-3 py-2">Column</th>
-                            <th className="px-3 py-2">References</th>
-                            <th className="px-3 py-2">On Delete</th>
-                            <th className="px-3 py-2">On Update</th>
+                            <th className="px-4 py-2.5">Local Column</th>
+                            <th className="px-4 py-2.5">Referenced Table & Column</th>
+                            <th className="px-4 py-2.5">On Delete</th>
+                            <th className="px-4 py-2.5">On Update</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-800">
+                        <tbody className="divide-y divide-[#e2e6ee] dark:divide-[#222938]">
                           {selectedTable.foreignKeys.map((fk, idx) => (
-                            <tr key={idx} className="hover:bg-zinc-900/30">
-                              <td className="px-3 py-2 text-indigo-300">{fk.column}</td>
-                              <td className="px-3 py-2 text-amber-300">
-                                {fk.referencedTable}({fk.referencedColumn})
+                            <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                              <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-medium">{fk.column}</td>
+                              <td className="px-4 py-2.5 text-amber-600 dark:text-amber-400 font-medium">
+                                {fk.referencedTable} ({fk.referencedColumn})
                               </td>
-                              <td className="px-3 py-2 text-zinc-400">{fk.onDelete || 'NO ACTION'}</td>
-                              <td className="px-3 py-2 text-zinc-400">{fk.onUpdate || 'NO ACTION'}</td>
+                              <td className="px-4 py-2.5 text-[#5f687a] dark:text-[#98a0af]">{fk.onDelete || 'NO ACTION'}</td>
+                              <td className="px-4 py-2.5 text-[#5f687a] dark:text-[#98a0af]">{fk.onUpdate || 'NO ACTION'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1020,32 +1118,37 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Indexes Card */}
                 {selectedTable.indexes && selectedTable.indexes.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-indigo-400" /> Indexes
+                  <div className="rounded-2xl p-4 bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938]">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-[#1b202a] dark:text-white">
+                      <Zap className="w-4 h-4 text-indigo-500" /> Indexes
                     </h3>
-                    <div className="overflow-hidden border border-zinc-800 rounded-lg">
+                    <div className="rounded-xl overflow-hidden border border-[#e2e6ee] dark:border-[#222938]">
                       <table className="w-full text-left border-collapse text-xs font-mono">
-                        <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-300">
+                        <thead className="bg-[#f8f9fb] dark:bg-[#1a1f2c] border-b border-[#e2e6ee] dark:border-[#222938] text-[#5f687a] dark:text-[#98a0af]">
                           <tr>
-                            <th className="px-3 py-2">Index Name</th>
-                            <th className="px-3 py-2">Columns</th>
-                            <th className="px-3 py-2">Unique</th>
+                            <th className="px-4 py-2.5">Index Name</th>
+                            <th className="px-4 py-2.5">Indexed Columns</th>
+                            <th className="px-4 py-2.5">Type</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-800">
+                        <tbody className="divide-y divide-[#e2e6ee] dark:divide-[#222938]">
                           {selectedTable.indexes.map((idx) => (
-                            <tr key={idx.name} className="hover:bg-zinc-900/30">
-                              <td className="px-3 py-2 text-zinc-200">{idx.name}</td>
-                              <td className="px-3 py-2 text-indigo-300">
+                            <tr key={idx.name} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                              <td className="px-4 py-2.5 font-semibold text-[#1b202a] dark:text-white">{idx.name}</td>
+                              <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-medium">
                                 {idx.columns.join(', ')}
                               </td>
-                              <td className="px-3 py-2">
+                              <td className="px-4 py-2.5">
                                 {idx.unique ? (
-                                  <span className="text-emerald-400 font-bold">UNIQUE</span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                                    UNIQUE INDEX
+                                  </span>
                                 ) : (
-                                  <span className="text-zinc-600">INDEX</span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                    INDEX
+                                  </span>
                                 )}
                               </td>
                             </tr>
@@ -1056,12 +1159,21 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Original DDL Card */}
                 {selectedTable.sql && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                      <FileCode className="w-4 h-4 text-zinc-400" /> Original DDL Statement
-                    </h3>
-                    <pre className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed">
+                  <div className="rounded-2xl p-4 bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold flex items-center gap-2 text-[#1b202a] dark:text-white">
+                        <FileCode className="w-4 h-4 text-[#8c96a8]" /> CREATE TABLE DDL
+                      </h3>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(selectedTable.sql || '')}
+                        className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                      >
+                        Copy DDL
+                      </button>
+                    </div>
+                    <pre className="p-3.5 rounded-xl bg-[#f8f9fb] dark:bg-[#0e1117] border border-[#e2e6ee] dark:border-[#222938] text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] overflow-x-auto leading-relaxed">
                       {selectedTable.sql}
                     </pre>
                   </div>
@@ -1086,7 +1198,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Phase 5 Modals */}
+      {/* Modals with Robi's Concentric Radius & Low-Saturation Palette */}
       {showPendingPanel && adapter && (
         <PendingChangesPanel
           changes={changes}
@@ -1121,7 +1233,6 @@ export default function App() {
         />
       )}
 
-      {/* Phase 6 Modals */}
       {showErDiagram && (
         <ErDiagramModal
           schema={schema}

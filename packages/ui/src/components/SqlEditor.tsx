@@ -39,7 +39,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   theme = 'dark',
 }) => {
   const [tabs, setTabs] = useState<SqlEditorTab[]>([
-    { id: 'tab-1', title: 'Query 1', query: 'SELECT * FROM users LIMIT 50;' },
+    { id: 'tab-1', title: 'Query 1', query: 'SELECT * FROM customers LIMIT 50;' },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-1');
   const [showHistory, setShowHistory] = useState<boolean>(false);
@@ -99,7 +99,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       options.push({
         label: kw,
         type: 'keyword',
-        boost: 0,
+        boost: 0.5,
       });
     }
 
@@ -109,7 +109,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     };
   };
 
-  // Mount/update CodeMirror 6 instance
+  // Mount CodeMirror 6
   useEffect(() => {
     if (!editorContainerRef.current) return;
 
@@ -117,12 +117,11 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       editorViewRef.current.destroy();
     }
 
-    const runShortcut = keymap.of([
+    const runShortcutKeymap = keymap.of([
       {
         key: 'Mod-Enter',
-        run: (view) => {
-          const currentSql = view.state.doc.toString();
-          onExecute(currentSql);
+        run: () => {
+          handleRunCurrent();
           return true;
         },
       },
@@ -136,10 +135,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         highlightSpecialChars(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        runShortcut,
-        sql({
-          dialect: SQLite,
-        }),
+        runShortcutKeymap,
+        sql({ dialect: SQLite }),
         autocompletion({
           override: [schemaCompletionSource],
         }),
@@ -154,16 +151,22 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
         }),
         EditorView.theme({
           '&': {
-            height: '140px',
+            height: '135px',
             fontSize: '13px',
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            backgroundColor: theme === 'dark' ? '#09090b' : '#ffffff',
+            backgroundColor: theme === 'dark' ? '#121622' : '#ffffff',
           },
           '.cm-scroller': {
             overflow: 'auto',
           },
           '.cm-content': {
             caretColor: '#6366f1',
+            padding: '8px 0',
+          },
+          '.cm-gutters': {
+            backgroundColor: theme === 'dark' ? '#10131d' : '#f8f9fb',
+            color: theme === 'dark' ? '#525b6d' : '#8c96a8',
+            borderRight: theme === 'dark' ? '1px solid #1c2232' : '1px solid #e2e6ee',
           },
         }),
       ],
@@ -235,48 +238,53 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-zinc-900 border-b border-zinc-800 shrink-0">
+    <div className="flex flex-col bg-white dark:bg-[#121622] border-b border-[#e2e6ee] dark:border-[#222938] shrink-0 font-sans transition-colors duration-150">
       {/* Tab bar header */}
-      <div className="flex items-center justify-between px-3 pt-2 pb-0 bg-zinc-950/70 border-b border-zinc-800">
+      <div className="flex items-center justify-between px-3 pt-1.5 pb-0 bg-[#f8f9fb] dark:bg-[#0f1218] border-b border-[#e2e6ee] dark:border-[#222938]">
+        {/* Concentric Tabs Strip */}
         <div className="flex items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              onClick={() => setActiveTabId(tab.id)}
-              className={`group flex items-center gap-2 px-3 py-1.5 text-xs rounded-t-md cursor-pointer border-t border-x transition ${
-                activeTabId === tab.id
-                  ? 'bg-zinc-900 border-zinc-800 text-indigo-400 font-semibold'
-                  : 'bg-zinc-950/50 border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40'
-              }`}
-            >
-              <span>{tab.title}</span>
-              {tabs.length > 1 && (
-                <button
-                  onClick={(e) => handleCloseTab(tab.id, e)}
-                  className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition"
-                  title="Close Tab"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ))}
+          {tabs.map((tab) => {
+            const isActive = activeTabId === tab.id;
+            return (
+              <div
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                className={`group flex items-center gap-2 px-3 py-1.5 text-xs rounded-t-lg cursor-pointer transition-all duration-150 ${
+                  isActive
+                    ? 'bg-white dark:bg-[#121622] text-indigo-600 dark:text-indigo-400 font-medium border-t-2 border-indigo-500 shadow-2xs'
+                    : 'text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                }`}
+              >
+                <span>{tab.title}</span>
+                {tabs.length > 1 && (
+                  <button
+                    onClick={(e) => handleCloseTab(tab.id, e)}
+                    className="opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity p-0.5 rounded"
+                    title="Close Tab"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
           <button
             onClick={handleAddTab}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition"
+            className="p-1 text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white rounded-md hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
             title="New Query Tab"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center gap-2 pb-1.5">
           <button
             onClick={() => setShowHistory((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded transition border ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-150 border ${
               showHistory
-                ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40'
-                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                : 'bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] border-[#e2e6ee] dark:border-[#262e40] hover:text-[#1b202a] dark:hover:text-white hover:bg-[#f1f3f7] dark:hover:bg-[#202534]'
             }`}
             title="Query History"
           >
@@ -287,36 +295,37 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
           <button
             onClick={handleRunCurrent}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 transition shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white disabled:opacity-50 transition-all duration-150 shadow-2xs"
           >
-            <Play className="w-3.5 h-3.5 fill-white" />
+            <Play className="w-3.5 h-3.5 fill-current" />
             <span>Run</span>
-            <span className="text-[10px] text-indigo-200 opacity-75 font-mono">Ctrl+↵</span>
+            <span className="text-[10px] text-indigo-200 opacity-80 font-mono">⌘↵</span>
           </button>
         </div>
       </div>
 
-      {/* CodeMirror Viewport */}
+      {/* CodeMirror Viewport Container */}
       <div className="relative">
-        <div ref={editorContainerRef} className="border-b border-zinc-800" />
+        <div ref={editorContainerRef} />
 
         {/* Query History Drawer */}
         {showHistory && (
-          <div className="absolute top-0 right-0 w-96 max-h-72 bg-zinc-900 border-l border-b border-zinc-800 shadow-2xl z-20 flex flex-col">
-            <div className="flex items-center justify-between p-2.5 bg-zinc-950 border-b border-zinc-800">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" /> Query History
+          <div className="absolute top-0 right-0 w-[400px] max-h-72 bg-white dark:bg-[#141824] border-l border-b border-[#e2e6ee] dark:border-[#222938] shadow-xl dark:shadow-none z-20 flex flex-col font-sans">
+            <div className="flex items-center justify-between p-3 bg-[#f8f9fb] dark:bg-[#10131d] border-b border-[#e2e6ee] dark:border-[#222938]">
+              <span className="text-xs font-semibold tracking-wide text-[#5f687a] dark:text-[#98a0af] flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Query History</span>
               </span>
               <button
                 onClick={() => setShowHistory(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white p-1 rounded"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-zinc-800">
+            <div className="flex-1 overflow-y-auto divide-y divide-[#e2e6ee] dark:divide-[#222938]">
               {historyList.length === 0 ? (
-                <div className="p-4 text-center text-xs text-zinc-500">
+                <div className="p-4 text-center text-xs text-[#8c96a8] italic">
                   No previous queries recorded yet
                 </div>
               ) : (
@@ -324,28 +333,28 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
                   <div
                     key={item.id}
                     onClick={() => loadHistoryItem(item)}
-                    className="p-2.5 hover:bg-zinc-800/60 cursor-pointer transition group"
+                    className="p-3 hover:bg-[#f8f9fb] dark:hover:bg-white/[0.04] cursor-pointer transition-colors group"
                   >
-                    <div className="flex items-center justify-between text-[11px] text-zinc-500 mb-1">
+                    <div className="flex items-center justify-between text-[11px] text-[#8c96a8] mb-1">
                       <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 font-mono">
                         <span>{item.durationMs}ms</span>
                         <span>•</span>
                         <span>{item.rowCount} rows</span>
                         <button
                           onClick={(e) => copyHistoryQuery(item, e)}
-                          className="text-zinc-500 hover:text-zinc-200"
+                          className="text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white transition"
                           title="Copy SQL"
                         >
                           {copiedId === item.id ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
+                            <Check className="w-3 h-3 text-emerald-500" />
                           ) : (
                             <Copy className="w-3 h-3" />
                           )}
                         </button>
                       </div>
                     </div>
-                    <pre className="text-xs font-mono text-zinc-300 truncate max-w-full">
+                    <pre className="text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] truncate max-w-full">
                       {item.sql}
                     </pre>
                   </div>

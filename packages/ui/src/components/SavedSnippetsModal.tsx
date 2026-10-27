@@ -75,86 +75,105 @@ export const SavedSnippetsModal: React.FC<SavedSnippetsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans select-none">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans select-none">
+      <div className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[85vh] transition-all duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-indigo-400" />
-            <span className="font-semibold text-sm text-white">SQL Snippets & Recipes</span>
+        <div className="flex items-center justify-between p-4 border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <Bookmark className="w-4 h-4" />
+            </div>
+            <span className="font-semibold text-sm text-[#1b202a] dark:text-white">SQL Snippets & Recipes</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content: Left list, Right preview */}
-        <div className="flex flex-1 overflow-hidden divide-x divide-zinc-800">
-          {/* Snippets Master List */}
-          <div className="w-72 overflow-y-auto p-2 space-y-1 bg-zinc-950/60">
-            {snippets.map((s) => (
-              <div
-                key={s.id}
-                onClick={() => setSelectedSnippet(s)}
-                className={`p-2.5 rounded-lg cursor-pointer transition ${
-                  selectedSnippet.id === s.id
-                    ? 'bg-indigo-600/20 border border-indigo-500/50 text-white'
-                    : 'text-zinc-300 hover:bg-zinc-900 border border-transparent'
-                }`}
-              >
-                <div className="text-xs font-semibold">{s.title}</div>
-                <div className="text-[11px] text-zinc-500 truncate mt-0.5">{s.description}</div>
-              </div>
-            ))}
+        {/* Content Body: Two columns with Concentric Radii */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: Snippets Selector */}
+          <div className="w-72 bg-[#f8f9fb] dark:bg-[#101319] border-r border-[#e2e6ee] dark:border-[#222938] p-3 space-y-1.5 overflow-y-auto">
+            {snippets.map((snip) => {
+              const isSelected = selectedSnippet.id === snip.id;
+              return (
+                <div
+                  key={snip.id}
+                  onClick={() => setSelectedSnippet(snip)}
+                  className={`p-3 rounded-xl cursor-pointer transition-all duration-150 ${
+                    isSelected
+                      ? 'bg-white dark:bg-[#1c2232] border border-indigo-200 dark:border-indigo-800/60 shadow-2xs'
+                      : 'hover:bg-black/5 dark:hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className={`text-xs font-semibold ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-[#1b202a] dark:text-[#edf0f6]'}`}>
+                    {snip.title}
+                  </div>
+                  <div className="text-[11px] text-[#8c96a8] mt-0.5 line-clamp-2">
+                    {snip.description}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Snippet Details & Editor Insert */}
-          <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto space-y-4">
-            <div className="space-y-3">
+          {/* Right: Snippet Detail & SQL Preview */}
+          <div className="flex-1 p-5 flex flex-col justify-between overflow-y-auto bg-white dark:bg-[#151922]">
+            <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-white">{selectedSnippet.title}</h3>
-                <p className="text-xs text-zinc-400 mt-0.5">{selectedSnippet.description}</p>
+                <h3 className="text-sm font-semibold text-[#1b202a] dark:text-white">
+                  {selectedSnippet.title}
+                </h3>
+                <p className="text-xs text-[#5f687a] dark:text-[#98a0af] mt-1">
+                  {selectedSnippet.description}
+                </p>
               </div>
 
               <div>
-                <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
-                  <span>SQL Template:</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium text-[#5f687a] dark:text-[#98a0af] flex items-center gap-1.5">
+                    <Code className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>SQL Query</span>
+                  </span>
                   <button
                     onClick={handleCopy}
-                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition flex items-center gap-1 text-[11px]"
+                    className="p-1 rounded-md text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition flex items-center gap-1 text-xs"
                   >
                     {copied ? (
                       <>
-                        <Check className="w-3 h-3 text-emerald-400" />
-                        <span className="text-emerald-400">Copied</span>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Copied</span>
                       </>
                     ) : (
-                      <Copy className="w-3 h-3" />
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy</span>
+                      </>
                     )}
                   </button>
                 </div>
-                <pre className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-100 overflow-x-auto leading-relaxed">
+                <pre className="p-3.5 bg-[#f8f9fb] dark:bg-[#0c0e14] border border-[#e2e6ee] dark:border-[#222938] rounded-xl text-xs font-mono text-[#1b202a] dark:text-[#edf0f6] overflow-x-auto leading-relaxed">
                   {selectedSnippet.sql}
                 </pre>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#e2e6ee] dark:border-[#222938]">
               <button
                 onClick={onClose}
-                className="px-3 py-1.5 text-xs rounded border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition"
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition active:scale-[0.98]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApply}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white transition shadow-2xs"
               >
-                <Play className="w-3.5 h-3.5" />
-                <span>Insert in Editor</span>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Insert into Editor</span>
               </button>
             </div>
           </div>

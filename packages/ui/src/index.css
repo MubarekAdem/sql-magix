@@ -1,7 +1,113 @@
 @import "tailwindcss";
 
-@layer base {
-  * {
-    border-color: rgb(39 39 42);
-  }
+:root {
+  /* Robi's Design System: Low-saturation HSL, WCAG AAA contrast, 4px grid */
+  /* Light Theme (No pure black/white to prevent halation) */
+  --bg-app: hsl(220, 16%, 98%);
+  --bg-surface: hsl(0, 0%, 100%);
+  --bg-surface-hover: hsl(220, 14%, 95%);
+  --bg-surface-active: hsl(220, 14%, 92%);
+  --bg-subtle: hsl(220, 14%, 96%);
+
+  --text-primary: hsl(222, 22%, 14%);
+  --text-muted: hsl(220, 12%, 44%);
+  --text-subtle: hsl(220, 10%, 62%);
+
+  --border-subtle: hsl(220, 14%, 90%);
+  --border-strong: hsl(220, 14%, 82%);
+
+  /* Low saturation accents */
+  --accent-primary: hsl(224, 56%, 52%);
+  --accent-primary-hover: hsl(224, 56%, 46%);
+  --accent-primary-subtle: hsl(224, 60%, 96%);
+
+  --accent-success: hsl(152, 40%, 42%);
+  --accent-success-subtle: hsl(152, 40%, 94%);
+
+  --accent-warning: hsl(38, 55%, 44%);
+  --accent-warning-subtle: hsl(38, 55%, 94%);
+
+  --accent-danger: hsl(352, 52%, 48%);
+  --accent-danger-subtle: hsl(352, 52%, 96%);
+}
+
+.dark {
+  /* Dark Theme (Desaturated, tinted charcoal, no harsh drop shadows, halation prevention) */
+  --bg-app: hsl(224, 18%, 8%);        /* #101319 */
+  --bg-surface: hsl(224, 16%, 11%);    /* #161922 */
+  --bg-surface-hover: hsl(224, 14%, 15%); /* #1f2330 */
+  --bg-surface-active: hsl(224, 14%, 18%);
+  --bg-subtle: hsl(224, 16%, 9.5%);
+
+  --text-primary: hsl(220, 16%, 94%);   /* #edf0f6 */
+  --text-muted: hsl(220, 12%, 64%);    /* #98a0af */
+  --text-subtle: hsl(220, 10%, 42%);
+
+  --border-subtle: hsl(224, 12%, 18%); /* Soft border instead of shadows */
+  --border-strong: hsl(224, 12%, 24%);
+
+  /* Low saturation desaturated accents for dark mode (10-20% less saturated, slightly lighter) */
+  --accent-primary: hsl(224, 46%, 62%);
+  --accent-primary-hover: hsl(224, 46%, 68%);
+  --accent-primary-subtle: hsl(224, 28%, 16%);
+
+  --accent-success: hsl(152, 35%, 58%);
+  --accent-success-subtle: hsl(152, 28%, 15%);
+
+  --accent-warning: hsl(38, 45%, 60%);
+  --accent-warning-subtle: hsl(38, 30%, 16%);
+
+  --accent-danger: hsl(352, 45%, 64%);
+  --accent-danger-subtle: hsl(352, 28%, 16%);
+}
+
+/* Base resets & typography */
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Robi's custom easing utility */
+.transition-robi {
+  transition-property: all;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Micro-interaction interactive button feel */
+.btn-robi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition-property: all;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.btn-robi:hover {
+  transform: translateY(-0.5px);
+}
+.btn-robi:active {
+  transform: scale(0.98);
+}
+
+/* Thin sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 150, 170, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 150, 170, 0.38);
 }

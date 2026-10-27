@@ -17,21 +17,21 @@ interface QuickChartModalProps {
 
 type ChartType = 'bar' | 'line' | 'pie' | 'scatter';
 
+// Robi's Low-Saturation Color Palette
 const COLORS = [
-  '#6366f1',
-  '#10b981',
-  '#f59e0b',
-  '#ec4899',
-  '#8b5cf6',
-  '#06b6d4',
-  '#f97316',
-  '#14b8a6',
+  'hsl(224, 52%, 58%)', // Slate blue
+  'hsl(152, 38%, 52%)', // Sage emerald
+  'hsl(38, 48%, 52%)',  // Warm amber
+  'hsl(330, 42%, 56%)', // Soft rose
+  'hsl(260, 42%, 58%)', // Muted violet
+  'hsl(190, 46%, 48%)', // Teal cyan
+  'hsl(16, 52%, 56%)',  // Terracotta
+  'hsl(205, 40%, 52%)', // Steel blue
 ];
 
 export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onClose }) => {
   const columns = useMemo(() => resultSet.columns.map((c) => c.name), [resultSet.columns]);
 
-  // Find likely default numeric & category columns
   const numericCols = useMemo(() => {
     return resultSet.columns
       .filter((c) => {
@@ -46,10 +46,9 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
   const [yAxisCol, setYAxisCol] = useState<string>(numericCols[0] || columns[1] || columns[0] || '');
   const [hoveredPoint, setHoveredPoint] = useState<{ x: string; y: number; idx: number } | null>(null);
 
-  // Parse chart data
   const chartData = useMemo(() => {
     return resultSet.rows
-      .slice(0, 30) // top 30 rows for chart clarity
+      .slice(0, 30)
       .map((row) => ({
         label: String(row[xAxisCol] ?? 'null'),
         val: typeof row[yAxisCol] === 'number' ? row[yAxisCol] : Number(row[yAxisCol]) || 0,
@@ -61,7 +60,6 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
     return Math.max(...chartData.map((d) => d.val), 1);
   }, [chartData]);
 
-  // Dimensions
   const svgWidth = 600;
   const svgHeight = 280;
   const padding = { top: 30, right: 30, bottom: 50, left: 60 };
@@ -69,33 +67,37 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
   const plotHeight = svgHeight - padding.top - padding.bottom;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans select-none">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans select-none">
+      <div className="bg-white dark:bg-[#151922] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[90vh] transition-all duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <BarChart className="w-4 h-4 text-indigo-400" />
-            <span className="font-semibold text-sm text-white">Quick Results Visualizer</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
-              {chartData.length} records plotted
-            </span>
+        <div className="flex items-center justify-between p-4 border-b border-[#e2e6ee] dark:border-[#222938]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <BarChart className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-sm text-[#1b202a] dark:text-white">Query Visualizer</span>
+              <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#eef1f6] dark:bg-[#1f2433] text-[#5f687a] dark:text-[#98a0af]">
+                {chartData.length} records plotted
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            className="p-1.5 rounded-lg text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Configuration Bar */}
-        <div className="p-3 bg-zinc-950/70 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-          {/* Chart Type Selector */}
-          <div className="flex items-center gap-1 border border-zinc-800 rounded-lg p-0.5 bg-zinc-900">
+        <div className="p-3 bg-[#f8f9fb] dark:bg-[#101319] border-b border-[#e2e6ee] dark:border-[#222938] flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Chart Type Selector with Concentric Radii */}
+          <div className="flex items-center p-1 rounded-xl bg-[#eef1f6] dark:bg-[#1a1f2c] border border-[#e2e6ee] dark:border-[#262e40] gap-1">
             <button
               onClick={() => setChartType('bar')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition ${
-                chartType === 'bar' ? 'bg-indigo-600 text-white font-medium' : 'text-zinc-400 hover:text-white'
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all duration-150 ${
+                chartType === 'bar' ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white font-medium shadow-2xs' : 'text-[#5f687a] dark:text-[#98a0af]'
               }`}
             >
               <BarChart className="w-3.5 h-3.5" />
@@ -103,8 +105,8 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
             </button>
             <button
               onClick={() => setChartType('line')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition ${
-                chartType === 'line' ? 'bg-indigo-600 text-white font-medium' : 'text-zinc-400 hover:text-white'
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all duration-150 ${
+                chartType === 'line' ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white font-medium shadow-2xs' : 'text-[#5f687a] dark:text-[#98a0af]'
               }`}
             >
               <LineChart className="w-3.5 h-3.5" />
@@ -112,17 +114,17 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
             </button>
             <button
               onClick={() => setChartType('pie')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition ${
-                chartType === 'pie' ? 'bg-indigo-600 text-white font-medium' : 'text-zinc-400 hover:text-white'
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all duration-150 ${
+                chartType === 'pie' ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white font-medium shadow-2xs' : 'text-[#5f687a] dark:text-[#98a0af]'
               }`}
             >
               <PieChart className="w-3.5 h-3.5" />
-              <span>Pie / Donut</span>
+              <span>Donut</span>
             </button>
             <button
               onClick={() => setChartType('scatter')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition ${
-                chartType === 'scatter' ? 'bg-indigo-600 text-white font-medium' : 'text-zinc-400 hover:text-white'
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all duration-150 ${
+                chartType === 'scatter' ? 'bg-white dark:bg-[#252c3d] text-indigo-600 dark:text-white font-medium shadow-2xs' : 'text-[#5f687a] dark:text-[#98a0af]'
               }`}
             >
               <ScatterChart className="w-3.5 h-3.5" />
@@ -133,11 +135,11 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
           {/* Axis Selectors */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 font-mono text-[11px]">X:</span>
+              <span className="text-[#5f687a] dark:text-[#98a0af] font-mono text-xs">X Axis:</span>
               <select
                 value={xAxisCol}
                 onChange={(e) => setXAxisCol(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-200 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                className="bg-white dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-2.5 py-1 text-[#1b202a] dark:text-[#edf0f6] font-mono text-xs focus:outline-none"
               >
                 {columns.map((c) => (
                   <option key={c} value={c}>
@@ -148,11 +150,11 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 font-mono text-[11px]">Y:</span>
+              <span className="text-[#5f687a] dark:text-[#98a0af] font-mono text-xs">Y Axis:</span>
               <select
                 value={yAxisCol}
                 onChange={(e) => setYAxisCol(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-indigo-300 font-mono text-xs focus:outline-none focus:border-indigo-500"
+                className="bg-white dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-lg px-2.5 py-1 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-medium focus:outline-none"
               >
                 {columns.map((c) => (
                   <option key={c} value={c}>
@@ -165,9 +167,9 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
         </div>
 
         {/* Chart Viewport */}
-        <div className="p-6 flex-1 flex flex-col items-center justify-center bg-zinc-950 relative">
+        <div className="p-6 flex-1 flex flex-col items-center justify-center bg-[#f8f9fb] dark:bg-[#0c0e14] relative">
           {chartData.length === 0 ? (
-            <div className="text-zinc-500 text-xs">No numeric data available to chart</div>
+            <div className="text-[#8c96a8] text-xs">No numeric data available to chart</div>
           ) : chartType === 'pie' ? (
             /* Pie / Donut Chart */
             <div className="flex flex-col md:flex-row items-center gap-8">
@@ -182,8 +184,8 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
                     const endAngle = cumAngle + sliceAngle;
                     cumAngle += sliceAngle;
 
-                    const r1 = 50; // donut inner radius
-                    const r2 = 100; // donut outer radius
+                    const r1 = 50;
+                    const r2 = 100;
 
                     const x1 = Math.cos(startAngle) * r2;
                     const y1 = Math.sin(startAngle) * r2;
@@ -203,8 +205,8 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
                         key={i}
                         d={path}
                         fill={COLORS[i % COLORS.length]}
-                        stroke="#09090b"
-                        strokeWidth="2"
+                        stroke="rgba(0,0,0,0.2)"
+                        strokeWidth="1.5"
                         className="transition-opacity hover:opacity-80 cursor-pointer"
                         onMouseEnter={() => setHoveredPoint({ x: d.label, y: d.val, idx: i })}
                         onMouseLeave={() => setHoveredPoint(null)}
@@ -219,23 +221,23 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
                 {chartData.map((d, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span
-                      className="w-3 h-3 rounded-xs shrink-0"
+                      className="w-3 h-3 rounded-md shrink-0"
                       style={{ backgroundColor: COLORS[i % COLORS.length] }}
                     />
-                    <span className="text-zinc-300 truncate max-w-[150px]">{d.label}:</span>
-                    <span className="text-white font-bold">{d.val}</span>
+                    <span className="text-[#3f4756] dark:text-[#c4cad4] truncate max-w-[140px]">{d.label}</span>
+                    <span className="text-[#8c96a8] font-bold">{d.val}</span>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            /* Cartesian Chart (Bar, Line, Scatter) */
-            <div className="relative w-full max-w-2xl">
-              <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
-                {/* Horizontal Grid Lines & Y-axis labels */}
-                {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-                  const y = padding.top + plotHeight * (1 - ratio);
-                  const labelVal = Math.round(maxY * ratio);
+            /* Bar, Line, or Scatter Chart */
+            <div className="relative">
+              <svg width={svgWidth} height={svgHeight} className="overflow-visible">
+                {/* Y-axis gridlines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+                  const y = padding.top + plotHeight * (1 - pct);
+                  const valLabel = Math.round(maxY * pct);
                   return (
                     <g key={i}>
                       <line
@@ -243,78 +245,78 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
                         y1={y}
                         x2={svgWidth - padding.right}
                         y2={y}
-                        stroke="#27272a"
-                        strokeDasharray="3 3"
+                        stroke="currentColor"
+                        className="text-[#e2e6ee] dark:text-[#222938]"
+                        strokeDasharray="4 4"
                       />
                       <text
                         x={padding.left - 8}
                         y={y + 4}
-                        fill="#71717a"
+                        fill="#8c96a8"
                         fontSize="10"
                         textAnchor="end"
-                        className="font-mono"
+                        className="font-mono select-none"
                       >
-                        {labelVal}
+                        {valLabel}
                       </text>
                     </g>
                   );
                 })}
 
-                {/* Plot Area */}
+                {/* Bars */}
                 {chartType === 'bar' &&
                   chartData.map((d, i) => {
-                    const step = plotWidth / chartData.length;
-                    const barWidth = Math.max(4, step * 0.7);
-                    const barHeight = Math.max(2, (d.val / maxY) * plotHeight);
-                    const x = padding.left + i * step + (step - barWidth) / 2;
-                    const y = padding.top + plotHeight - barHeight;
+                    const barWidth = Math.max(4, plotWidth / chartData.length - 8);
+                    const x = padding.left + i * (plotWidth / chartData.length) + 4;
+                    const h = (Math.max(0, d.val) / maxY) * plotHeight;
+                    const y = padding.top + plotHeight - h;
 
                     return (
-                      <g key={i}>
-                        <rect
-                          x={x}
-                          y={y}
-                          width={barWidth}
-                          height={barHeight}
-                          fill={COLORS[i % COLORS.length]}
-                          rx="2"
-                          className="transition-all hover:opacity-80 cursor-pointer"
-                          onMouseEnter={() => setHoveredPoint({ x: d.label, y: d.val, idx: i })}
-                          onMouseLeave={() => setHoveredPoint(null)}
-                        />
-                      </g>
+                      <rect
+                        key={i}
+                        x={x}
+                        y={y}
+                        width={barWidth}
+                        height={Math.max(2, h)}
+                        fill="hsl(224, 52%, 58%)"
+                        rx="4"
+                        className="transition-all hover:fill-indigo-400 cursor-pointer"
+                        onMouseEnter={() => setHoveredPoint({ x: d.label, y: d.val, idx: i })}
+                        onMouseLeave={() => setHoveredPoint(null)}
+                      />
                     );
                   })}
 
+                {/* Line */}
                 {chartType === 'line' && (
                   <>
-                    {/* Polyline path */}
-                    <path
-                      d={chartData
+                    <polyline
+                      fill="none"
+                      stroke="hsl(224, 52%, 58%)"
+                      strokeWidth="2.5"
+                      points={chartData
                         .map((d, i) => {
-                          const x = padding.left + (i / Math.max(1, chartData.length - 1)) * plotWidth;
-                          const y = padding.top + plotHeight - (d.val / maxY) * plotHeight;
-                          return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                          const x =
+                            padding.left +
+                            (i + 0.5) * (plotWidth / chartData.length);
+                          const y = padding.top + plotHeight - (Math.max(0, d.val) / maxY) * plotHeight;
+                          return `${x},${y}`;
                         })
                         .join(' ')}
-                      fill="none"
-                      stroke="#818cf8"
-                      strokeWidth="3"
                     />
-
-                    {/* Data Points */}
                     {chartData.map((d, i) => {
-                      const x = padding.left + (i / Math.max(1, chartData.length - 1)) * plotWidth;
-                      const y = padding.top + plotHeight - (d.val / maxY) * plotHeight;
+                      const x =
+                        padding.left + (i + 0.5) * (plotWidth / chartData.length);
+                      const y = padding.top + plotHeight - (Math.max(0, d.val) / maxY) * plotHeight;
                       return (
                         <circle
                           key={i}
                           cx={x}
                           cy={y}
                           r="4"
-                          fill="#4f46e5"
-                          stroke="#ffffff"
-                          strokeWidth="1.5"
+                          fill="#ffffff"
+                          stroke="hsl(224, 52%, 58%)"
+                          strokeWidth="2"
                           className="hover:r-6 cursor-pointer"
                           onMouseEnter={() => setHoveredPoint({ x: d.label, y: d.val, idx: i })}
                           onMouseLeave={() => setHoveredPoint(null)}
@@ -324,55 +326,36 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
                   </>
                 )}
 
+                {/* Scatter */}
                 {chartType === 'scatter' &&
                   chartData.map((d, i) => {
-                    const x = padding.left + (i / Math.max(1, chartData.length - 1)) * plotWidth;
-                    const y = padding.top + plotHeight - (d.val / maxY) * plotHeight;
+                    const x =
+                      padding.left + (i + 0.5) * (plotWidth / chartData.length);
+                    const y = padding.top + plotHeight - (Math.max(0, d.val) / maxY) * plotHeight;
                     return (
                       <circle
                         key={i}
                         cx={x}
                         cy={y}
                         r="5"
-                        fill="#10b981"
-                        stroke="#064e3b"
-                        strokeWidth="1"
-                        className="cursor-pointer"
+                        fill="hsl(152, 38%, 52%)"
+                        stroke="#ffffff"
+                        strokeWidth="1.5"
+                        className="hover:scale-125 transition-transform cursor-pointer"
                         onMouseEnter={() => setHoveredPoint({ x: d.label, y: d.val, idx: i })}
                         onMouseLeave={() => setHoveredPoint(null)}
                       />
                     );
                   })}
-
-                {/* X-axis labels (subsample if many) */}
-                {chartData.map((d, i) => {
-                  if (chartData.length > 12 && i % Math.ceil(chartData.length / 8) !== 0) return null;
-                  const x =
-                    chartType === 'bar'
-                      ? padding.left + i * (plotWidth / chartData.length) + (plotWidth / chartData.length) / 2
-                      : padding.left + (i / Math.max(1, chartData.length - 1)) * plotWidth;
-
-                  return (
-                    <text
-                      key={i}
-                      x={x}
-                      y={svgHeight - padding.bottom + 18}
-                      fill="#a1a1aa"
-                      fontSize="10"
-                      textAnchor="middle"
-                      className="font-mono truncate"
-                    >
-                      {d.label.length > 8 ? `${d.label.substring(0, 7)}…` : d.label}
-                    </text>
-                  );
-                })}
               </svg>
 
               {/* Hover Tooltip */}
               {hoveredPoint && (
-                <div className="absolute top-2 right-4 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1 text-xs text-white shadow-xl pointer-events-none font-mono">
-                  <div className="text-zinc-400">{hoveredPoint.x}</div>
-                  <div className="font-bold text-indigo-400">{hoveredPoint.y}</div>
+                <div className="absolute top-2 right-2 bg-white dark:bg-[#161a24] border border-[#e2e6ee] dark:border-[#262e40] rounded-xl px-3 py-1.5 text-xs font-mono shadow-lg pointer-events-none">
+                  <div className="text-[#8c96a8] truncate max-w-[180px]">{hoveredPoint.x}</div>
+                  <div className="font-semibold text-indigo-600 dark:text-indigo-400">
+                    {yAxisCol}: {hoveredPoint.y}
+                  </div>
                 </div>
               )}
             </div>
@@ -380,12 +363,12 @@ export const QuickChartModal: React.FC<QuickChartModalProps> = ({ resultSet, onC
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-zinc-800 flex justify-end bg-zinc-950/60">
+        <div className="p-4 border-t border-[#e2e6ee] dark:border-[#222938] flex items-center justify-end bg-[#f8f9fb]/60 dark:bg-[#101319]/60">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-medium rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition"
+            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-[#e2e6ee] dark:border-[#262e40] bg-white dark:bg-[#1a1f2c] text-[#5f687a] dark:text-[#98a0af] hover:text-[#1b202a] dark:hover:text-white transition active:scale-[0.98]"
           >
-            Close Chart
+            Close
           </button>
         </div>
       </div>

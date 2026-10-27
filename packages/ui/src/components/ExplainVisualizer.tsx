@@ -29,12 +29,10 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
   const [copiedSql, setCopiedSql] = React.useState<string | null>(null);
   const [isApplying, setIsApplying] = React.useState<boolean>(false);
 
-  // Recommendations for missing indexes
   const recommendations: IndexRecommendation[] = useMemo(() => {
     return analyzePlanForMissingIndexes(plan, dialect, querySql);
   }, [plan, dialect, querySql]);
 
-  // Breakdown lines of execution plan
   const planLines = useMemo(() => {
     if (!plan.text) return [];
     return plan.text.split('\n').filter((l) => l.trim().length > 0);
@@ -59,11 +57,13 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
   return (
     <div className="h-full overflow-y-auto p-6 max-w-4xl space-y-6 font-sans select-none">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-violet-400" />
-          <h3 className="text-sm font-semibold text-white">Execution Plan & Index Advisor</h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase">
+      <div className="flex items-center justify-between pb-3 border-b border-[#e2e6ee] dark:border-[#222938]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+            <Activity className="w-4 h-4" />
+          </div>
+          <h3 className="text-sm font-semibold text-[#1b202a] dark:text-white">Execution Plan & Index Advisor</h3>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#eef1f6] dark:bg-[#1f2433] text-[#5f687a] dark:text-[#98a0af] uppercase">
             {dialect}
           </span>
         </div>
@@ -71,29 +71,29 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
 
       {/* Index Advisor Recommendations */}
       {recommendations.length > 0 && (
-        <div className="p-4 bg-amber-950/30 border border-amber-800/60 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
-            <Zap className="w-4 h-4 text-amber-400" />
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+            <Zap className="w-4 h-4 text-amber-500" />
             <span>Missing Index Suggestions ({recommendations.length})</span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {recommendations.map((rec, idx) => (
               <div
                 key={idx}
-                className="p-3 bg-zinc-950/80 border border-amber-800/40 rounded-lg space-y-2 text-xs"
+                className="p-3 bg-white dark:bg-[#151922] border border-amber-200 dark:border-amber-800/40 rounded-xl space-y-2 text-xs"
               >
-                <div className="text-zinc-300 font-sans">{rec.reason}</div>
-                <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 font-mono text-[11px] text-emerald-400">
+                <div className="text-[#3f4756] dark:text-[#c4cad4] font-sans">{rec.reason}</div>
+                <div className="flex items-center justify-between bg-[#f8f9fb] dark:bg-[#0c0e14] border border-[#e2e6ee] dark:border-[#222938] rounded-lg px-3 py-1.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
                   <span className="truncate mr-2">{rec.createIndexSql}</span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => handleCopy(rec.createIndexSql)}
-                      className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                      className="p-1 rounded-md text-[#8c96a8] hover:text-[#1b202a] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition"
                       title="Copy SQL"
                     >
                       {copiedSql === rec.createIndexSql ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -102,9 +102,9 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
                       <button
                         onClick={() => handleApplyIndex(rec.createIndexSql)}
                         disabled={isApplying}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs transition disabled:opacity-50"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs transition disabled:opacity-50 active:scale-[0.98]"
                       >
-                        <PlusCircle className="w-3 h-3" />
+                        <PlusCircle className="w-3.5 h-3.5" />
                         <span>Apply Index</span>
                       </button>
                     )}
@@ -118,7 +118,7 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
 
       {/* Graphical Step Cards */}
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+        <h4 className="text-xs font-semibold text-[#5f687a] dark:text-[#98a0af] tracking-wide">
           Query Execution Hierarchy
         </h4>
 
@@ -130,16 +130,16 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
             return (
               <div
                 key={idx}
-                className={`p-3 rounded-lg border flex items-center justify-between transition ${
+                className={`p-3 rounded-xl border flex items-center justify-between transition-all duration-150 ${
                   isTableScan
-                    ? 'bg-amber-950/20 border-amber-800/50 text-amber-200'
+                    ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50 text-amber-900 dark:text-amber-200'
                     : isIndexSearch
-                    ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-300'
+                    ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-200'
+                    : 'bg-white dark:bg-[#151922] border-[#e2e6ee] dark:border-[#222938] text-[#1b202a] dark:text-[#edf0f6]'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <span className="text-zinc-600 select-none text-[10px] w-5 text-right shrink-0">
+                  <span className="text-[#8c96a8] select-none text-[10px] w-5 text-right shrink-0">
                     {idx + 1}
                   </span>
                   <span className="truncate">{line}</span>
@@ -147,12 +147,12 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
 
                 <div className="shrink-0 ml-3">
                   {isTableScan && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950 text-amber-300 border border-amber-700">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-sans">
                       Sequential Scan
                     </span>
                   )}
                   {isIndexSearch && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-700">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-sans">
                       Index Lookup
                     </span>
                   )}
@@ -165,10 +165,10 @@ export const ExplainVisualizer: React.FC<ExplainVisualizerProps> = ({
 
       {/* Raw Output Block */}
       <div>
-        <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+        <h4 className="text-xs font-semibold text-[#5f687a] dark:text-[#98a0af] tracking-wide mb-2">
           Raw Optimizer Output
         </h4>
-        <pre className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
+        <pre className="p-4 bg-[#f8f9fb] dark:bg-[#0c0e14] border border-[#e2e6ee] dark:border-[#222938] rounded-2xl text-xs font-mono text-[#3f4756] dark:text-[#c4cad4] leading-relaxed whitespace-pre-wrap select-text">
           {plan.text}
         </pre>
       </div>
