@@ -47,6 +47,7 @@ program
     }
 
     // Determine target from flag, argument, or DATABASE_URL env
+    const isFromEnv = !options.url && !targetArg && !!process.env.DATABASE_URL;
     const rawTarget =
       options.url ||
       targetArg ||
@@ -119,7 +120,8 @@ program
         }
       }
     } else {
-      console.log(pc.gray(`🗄️  Target: ${pc.white(maskedTarget)} (${dialect})`));
+      const sourceLabel = isFromEnv ? pc.cyan(' [from DATABASE_URL in .env]') : '';
+      console.log(pc.gray(`🗄️  Target: ${pc.white(maskedTarget)} (${dialect})${sourceLabel}`));
       if (isReadOnly) {
         console.log(pc.yellow(`🔒 Mode: Read-Only (Pass --allow-write to enable write operations)`));
       } else {
