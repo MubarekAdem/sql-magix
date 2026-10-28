@@ -38,10 +38,10 @@ const program = new Command();
 program
   .name('sql-magix')
   .description('High-performance, dialect-neutral database viewer and query studio')
-  .version('0.1.2')
+  .version('0.1.3')
   .argument('[target]', 'Database file path or connection string URL (postgres://, mysql://, sqlite:)')
   .option('-u, --url <connectionString>', 'Database connection URL')
-  .option('-p, --port <number>', 'Port to bind server', (val) => parseInt(val, 10), 3000)
+  .option('-p, --port <number>', 'Port to bind server', (val) => parseInt(val, 10), 8989)
   .option('-H, --host <address>', 'Host address to bind', '127.0.0.1')
   .option('--allow-write', 'Permit write/mutation operations (read-only by default)', false)
   .option('--readonly', 'Explicitly enforce read-only mode', true)

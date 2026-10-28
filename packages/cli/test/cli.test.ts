@@ -12,7 +12,7 @@ describe('sql-magic CLI', () => {
     program
       .name('sql-magix')
       .argument('[target]', 'Database target', '.')
-      .option('-p, --port <number>', 'Port', (v) => parseInt(v, 10), 3000)
+      .option('-p, --port <number>', 'Port', (v) => parseInt(v, 10), 8989)
       .option('-H, --host <address>', 'Host', '127.0.0.1')
       .option('--readonly', 'Read-only', false)
       .option('--no-open', 'No open')

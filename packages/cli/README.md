@@ -63,7 +63,7 @@ sql-magix ./mydb.sqlite
 | :--- | :--- | :--- |
 | `[target]` | Database path, directory, or connection URL | `.` |
 | `-u, --url <url>` | Explicit database connection string URL | `undefined` |
-| `-p, --port <number>` | Port for local studio server | `3000` |
+| `-p, --port <number>` | Port for local studio server | `8989` |
 | `-H, --host <ip>` | Network interface to bind (`127.0.0.1` or `0.0.0.0`) | `127.0.0.1` |
 | `--readonly` | Enforce strict read-only mode | `true` |
 | `--allow-write` | Permit mutations and DDL commits | `false` |

@@ -1,6 +1,6 @@
 {
   "name": "sql-magix",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "High-performance, dialect-neutral database viewer and query studio for SQLite, PostgreSQL, and MySQL",
   "type": "module",
   "bin": {

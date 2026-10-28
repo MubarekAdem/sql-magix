@@ -51,7 +51,7 @@ const MIME_MAP: Record<string, string> = {
 export function createViewerApp(options: ServerOptions = {}) {
   const app = new Hono();
   const host = options.host || '127.0.0.1';
-  const port = options.port || 3000;
+  const port = options.port || (process.env.PORT ? parseInt(process.env.PORT, 10) : 8989);
   const token = options.token;
 
   // 1. Security Middleware (DNS rebinding, CSRF, Token auth)
@@ -323,7 +323,7 @@ function resolveDefaultUiDir(): string | null {
  * Programmatic API to start the SQL Magic viewer server.
  */
 export async function startViewer(options: ServerOptions = {}): Promise<ViewerInstance> {
-  const port = options.port || 3000;
+  const port = options.port || (process.env.PORT ? parseInt(process.env.PORT, 10) : 8989);
   const host = options.host || '127.0.0.1';
   const token = options.token !== undefined ? options.token : generateRandomToken();
 

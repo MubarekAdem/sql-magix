@@ -132,7 +132,7 @@ When starting with no database or a blank database, `sql-magix` greets you with 
 | :--- | :--- | :--- |
 | `target` | Path to a `.db` file, directory, or connection URL | `.` |
 | `-u, --url <url>` | Explicit database connection URL | `undefined` |
-| `-p, --port <number>` | Port for the local web server | `3000` |
+| `-p, --port <number>` | Port for the local web server | `8989` |
 | `-H, --host <ip>` | Network interface to bind (`127.0.0.1` or `0.0.0.0`) | `127.0.0.1` |
 | `--readonly` | Enforce strict read-only database connections | `true` |
 | `--allow-write` | Enable write mutations and DDL commits | `false` |
