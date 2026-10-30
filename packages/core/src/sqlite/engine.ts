@@ -244,8 +244,12 @@ export class SqliteEngine implements DbAdapter {
     return parseSqliteExplainPlan(res.rows as any);
   }
 
-  quoteIdent(name: string): string {
-    return quoteSqliteIdent(name);
+  quoteIdent(name: string, schema?: string): string {
+    const clean = quoteSqliteIdent(name);
+    if (schema && schema !== 'main') {
+      return `${quoteSqliteIdent(schema)}.${clean}`;
+    }
+    return clean;
   }
 
   async close(): Promise<void> {

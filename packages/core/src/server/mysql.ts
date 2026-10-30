@@ -59,50 +59,162 @@ export class MysqlAdapter implements DbAdapter {
   }
 
   /**
-   * Initializes connection pool with mysql2.
+   * Initializes connection pool with mysql2, supporting SSL auto-negotiation and auto-database discovery.
    */
   async init(): Promise<void> {
+    let cleanUri = this.options.connectionUri;
+    let targetDatabase = this.options.database || '';
+    let sslConfig: any = undefined;
+
+    try {
+      const parsedUrl = new URL(this.options.connectionUri);
+      const isLocalhost = /^(localhost|127\.0\.0\.1|::1)$/i.test(parsedUrl.hostname);
+      const hasSslMode = parsedUrl.searchParams.has('sslmode');
+      const hasSsl = parsedUrl.searchParams.has('ssl');
+      const sslVal = parsedUrl.searchParams.get('ssl');
+
+      const isCloudHost =
+        /planetscale|tidbcloud|aivencloud|rds\.amazonaws\.com|clever-cloud|azure|railway|render/i.test(
+          parsedUrl.hostname
+        );
+
+      if (!isLocalhost || hasSslMode || isCloudHost || sslVal === 'true' || hasSsl) {
+        sslConfig = { rejectUnauthorized: false };
+      }
+
+      // Extract database from URL path if not already provided
+      const pathDb = parsedUrl.pathname.replace(/^\//, '');
+      if (pathDb && !targetDatabase) {
+        targetDatabase = decodeURIComponent(pathDb);
+      }
+
+      // Remove `sslmode` and `ssl` query params from URI so mysql2 doesn't throw
+      // "TypeError: SSL profile must be an object, instead it's a boolean"
+      parsedUrl.searchParams.delete('sslmode');
+      parsedUrl.searchParams.delete('ssl');
+      cleanUri = parsedUrl.toString();
+    } catch {
+      const match = this.options.connectionUri.match(/:\/\/[^/]+\/([^?&#]+)/);
+      if (match && match[1] && !targetDatabase) {
+        targetDatabase = decodeURIComponent(match[1]);
+      }
+      if (/sslmode=|ssl=true/i.test(this.options.connectionUri)) {
+        sslConfig = { rejectUnauthorized: false };
+      }
+    }
+
     const mysql = await import('mysql2/promise');
     this.pool = mysql.createPool({
-      uri: this.options.connectionUri,
-      database: this.options.database,
+      uri: cleanUri,
+      database: targetDatabase || undefined,
+      ssl: sslConfig,
+      connectTimeout: this.options.timeoutMs || 10000,
       waitForConnections: true,
       connectionLimit: 10,
     });
 
-    // Determine initial active database
+    // Test connection and determine active database
     try {
-      const res = await this.query('SELECT DATABASE() as db;');
-      this.activeDatabase = String((res.rows[0] as any)?.db || '');
-    } catch {
-      // Ignored
+      const [rows] = await this.pool.query('SELECT DATABASE() as db;');
+      const detected = String((rows as any)?.[0]?.db || '').trim();
+      if (detected && detected !== 'null' && detected !== 'undefined') {
+        this.activeDatabase = detected;
+      }
+    } catch (err: unknown) {
+      await this.close();
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to connect to MySQL database: ${msg}`);
+    }
+
+    if (!this.activeDatabase && targetDatabase) {
+      this.activeDatabase = targetDatabase;
+    }
+
+    // If still no active database, auto-discover first accessible database
+    if (!this.activeDatabase) {
+      try {
+        const schemas = await this.listSchemas();
+        if (schemas.length > 0) {
+          this.activeDatabase = schemas[0];
+          try {
+            await this.query(`USE \`${this.activeDatabase.replace(/`/g, '``')}\`;`);
+          } catch {
+            // Ignored
+          }
+        }
+      } catch {
+        // Ignored
+      }
     }
   }
 
   async listSchemas(): Promise<string[]> {
     if (!this.pool) throw new Error('MysqlAdapter is not initialized');
-    const res = await this.query(
-      `SELECT schema_name FROM information_schema.schemata
-       WHERE schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
-       ORDER BY schema_name;`
-    );
-    const list = res.rows.map((r) => String((r as any).schema_name));
-    return list.length > 0 ? list : [this.activeDatabase || 'default'];
+
+    // 1. Try SHOW DATABASES (standard and universal across all MySQL / MariaDB variants)
+    try {
+      const showRes = await this.query('SHOW DATABASES;');
+      const list = showRes.rows
+        .map((r: any) => String(r.Database || r.database || Object.values(r)[0] || ''))
+        .filter(
+          (db) =>
+            db &&
+            !['information_schema', 'mysql', 'performance_schema', 'sys'].includes(db.toLowerCase())
+        );
+      if (list.length > 0) return list;
+    } catch {
+      // Fallback to information_schema.schemata
+    }
+
+    // 2. Fallback to information_schema.schemata
+    try {
+      const res = await this.query(
+        `SELECT schema_name FROM information_schema.schemata
+         WHERE LOWER(schema_name) NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+         ORDER BY schema_name;`
+      );
+      const list = res.rows
+        .map((r) => String((r as any).schema_name || ''))
+        .filter(Boolean);
+      if (list.length > 0) return list;
+    } catch {
+      // Fallback
+    }
+
+    return this.activeDatabase ? [this.activeDatabase] : [];
   }
 
   async getSchema(schemaName?: string): Promise<DatabaseSchema> {
     if (!this.pool) throw new Error('MysqlAdapter is not initialized');
-    const targetDb = schemaName || this.activeDatabase;
+    let targetDb = schemaName || this.activeDatabase;
     if (!targetDb) {
       const schemas = await this.listSchemas();
-      return this.getSchema(schemas[0]);
+      if (schemas.length > 0) {
+        targetDb = schemas[0];
+      }
+    }
+
+    if (!targetDb) {
+      return {
+        tables: [],
+        views: [],
+        triggers: [],
+        currentSchema: '',
+      };
+    }
+
+    this.activeDatabase = targetDb;
+    try {
+      await this.query(`USE \`${targetDb.replace(/`/g, '``')}\`;`);
+    } catch {
+      // Ignored
     }
 
     // 1. Tables & Views
     const tablesRes = await this.query(
       `SELECT table_name, table_type
        FROM information_schema.tables
-       WHERE table_schema = ?
+       WHERE LOWER(table_schema) = LOWER(?)
        ORDER BY table_type, table_name;`,
       [targetDb]
     );
@@ -111,7 +223,7 @@ export class MysqlAdapter implements DbAdapter {
     const columnsRes = await this.query(
       `SELECT table_name, column_name, data_type, is_nullable, column_default, ordinal_position, column_key, extra
        FROM information_schema.columns
-       WHERE table_schema = ?
+       WHERE LOWER(table_schema) = LOWER(?)
        ORDER BY table_name, ordinal_position;`,
       [targetDb]
     );
@@ -125,7 +237,7 @@ export class MysqlAdapter implements DbAdapter {
          referenced_column_name,
          constraint_name
        FROM information_schema.key_column_usage
-       WHERE table_schema = ? AND referenced_table_name IS NOT NULL;`,
+       WHERE LOWER(table_schema) = LOWER(?) AND referenced_table_name IS NOT NULL;`,
       [targetDb]
     );
 
@@ -138,18 +250,24 @@ export class MysqlAdapter implements DbAdapter {
          non_unique,
          seq_in_index
        FROM information_schema.statistics
-       WHERE table_schema = ?
+       WHERE LOWER(table_schema) = LOWER(?)
        ORDER BY table_name, index_name, seq_in_index;`,
       [targetDb]
     );
 
     // 5. Triggers
-    const triggerRes = await this.query(
-      `SELECT trigger_name, event_object_table, action_timing, event_manipulation, action_statement
-       FROM information_schema.triggers
-       WHERE trigger_schema = ?;`,
-      [targetDb]
-    );
+    let triggerRows: any[] = [];
+    try {
+      const triggerRes = await this.query(
+        `SELECT trigger_name, event_object_table, action_timing, event_manipulation, action_statement
+         FROM information_schema.triggers
+         WHERE LOWER(trigger_schema) = LOWER(?);`,
+        [targetDb]
+      );
+      triggerRows = triggerRes.rows;
+    } catch {
+      // Cloud providers may restrict triggers metadata
+    }
 
     // Group columns by table
     const colMap = new Map<string, ColumnInfo[]>();
@@ -227,7 +345,7 @@ export class MysqlAdapter implements DbAdapter {
       }
     }
 
-    const triggers: TriggerInfo[] = (triggerRes.rows as any[]).map((trg) => ({
+    const triggers: TriggerInfo[] = triggerRows.map((trg) => ({
       name: trg.trigger_name,
       table: trg.event_object_table,
       timing: trg.action_timing,
@@ -306,8 +424,13 @@ export class MysqlAdapter implements DbAdapter {
     };
   }
 
-  quoteIdent(name: string): string {
-    return `\`${name.replace(/`/g, '``')}\``;
+  quoteIdent(name: string, schema?: string): string {
+    const cleanName = `\`${name.replace(/`/g, '``')}\``;
+    if (schema) {
+      const cleanSchema = `\`${schema.replace(/`/g, '``')}\``;
+      return `${cleanSchema}.${cleanName}`;
+    }
+    return cleanName;
   }
 
   async close(): Promise<void> {

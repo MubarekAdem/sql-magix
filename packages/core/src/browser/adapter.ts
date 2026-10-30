@@ -132,8 +132,12 @@ export class BrowserSqliteAdapter implements DbAdapter {
     return this.send<Plan>({ type: 'explain', sql });
   }
 
-  quoteIdent(name: string): string {
-    return quoteSqliteIdent(name);
+  quoteIdent(name: string, schema?: string): string {
+    const clean = quoteSqliteIdent(name);
+    if (schema && schema !== 'main') {
+      return `${quoteSqliteIdent(schema)}.${clean}`;
+    }
+    return clean;
   }
 
   async close(): Promise<void> {

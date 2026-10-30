@@ -188,9 +188,10 @@ export interface DbAdapter {
   explain(sql: string): Promise<Plan>;
 
   /**
-   * Quote an identifier according to dialect rules (e.g. "ident" or `ident`).
+   * Quote an identifier according to dialect rules (e.g. "ident" or `ident`),
+   * with optional schema / database qualification.
    */
-  quoteIdent(name: string): string;
+  quoteIdent(name: string, schema?: string): string;
 
   /**
    * Close connection and release resources.

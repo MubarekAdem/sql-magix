@@ -25,11 +25,38 @@ export function createSecurityMiddleware(config: SecurityConfig): MiddlewareHand
     '127.0.0.1',
     'localhost',
     '::1',
-    config.host,
+    '0.0.0.0',
+    config.host.toLowerCase(),
   ]);
 
   return async (c, next) => {
     const reqHost = c.req.header('host');
+    const origin = c.req.header('origin');
+
+    // 0. Preflight & CORS Support for trusted local tooling
+    let isAllowedOrigin = false;
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        if (allowedHostNames.has(originUrl.hostname.toLowerCase())) {
+          isAllowedOrigin = true;
+          c.header('Access-Control-Allow-Origin', origin);
+          c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+          c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-viewer-token');
+          c.header('Access-Control-Allow-Credentials', 'true');
+        }
+      } catch {
+        return c.text('Forbidden: Invalid Origin header', 403);
+      }
+    }
+
+    // Always respond 204 to preflight OPTIONS requests from allowed origins (or general preflights)
+    if (c.req.method === 'OPTIONS') {
+      if (origin && !isAllowedOrigin) {
+        return c.text('Forbidden: Cross-site requests are rejected', 403);
+      }
+      return c.body(null, 204);
+    }
 
     // 1. Host Validation (DNS Rebinding protection)
     if (reqHost) {
@@ -42,24 +69,17 @@ export function createSecurityMiddleware(config: SecurityConfig): MiddlewareHand
     }
 
     // 2. Origin Validation (Cross-Site Request Forgery protection)
-    const origin = c.req.header('origin');
-    if (origin) {
-      try {
-        const originUrl = new URL(origin);
-        if (!allowedHostNames.has(originUrl.hostname.toLowerCase())) {
-          return c.text('Forbidden: Cross-site requests are rejected', 403);
-        }
-      } catch {
-        return c.text('Forbidden: Invalid Origin header', 403);
-      }
+    if (origin && !isAllowedOrigin) {
+      return c.text('Forbidden: Cross-site requests are rejected', 403);
     }
 
     // 3. Token Authentication
     if (config.token) {
-      // Check query parameter, Authorization header, or cookie
+      // Check query parameter, Authorization header, x-viewer-token, or cookie
       const queryToken = c.req.query('token');
       const authHeader = c.req.header('authorization');
       const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      const customToken = c.req.header('x-viewer-token');
       const cookieHeader = c.req.header('cookie') || '';
       const cookieToken = cookieHeader
         .split(';')
@@ -67,7 +87,7 @@ export function createSecurityMiddleware(config: SecurityConfig): MiddlewareHand
         .find((s) => s.startsWith('sql_magic_token='))
         ?.split('=')[1];
 
-      const providedToken = queryToken || bearerToken || cookieToken;
+      const providedToken = queryToken || bearerToken || customToken || cookieToken;
 
       if (providedToken !== config.token) {
         // If requesting API endpoint without valid token, deny

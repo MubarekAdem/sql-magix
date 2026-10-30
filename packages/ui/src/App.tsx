@@ -150,6 +150,19 @@ export default function App() {
     }
   }, []);
 
+  const getTableQuery = (table: TableInfo, actAdapter?: DbAdapter) => {
+    const targetAdapter = actAdapter || adapter;
+    const dialect = targetAdapter?.dialect;
+    if (dialect === 'postgres' && table.schema && table.schema !== 'public') {
+      return `SELECT * FROM "${table.schema}"."${table.name}" LIMIT 100;`;
+    }
+    if (dialect === 'mysql' && (table.schema || activeSchema)) {
+      const sch = table.schema || activeSchema;
+      return `SELECT * FROM \`${sch}\`.\`${table.name}\` LIMIT 100;`;
+    }
+    return `SELECT * FROM ${targetAdapter?.quoteIdent(table.name, table.schema) || `"${table.name}"`} LIMIT 100;`;
+  };
+
   const initApp = async () => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -170,10 +183,27 @@ export default function App() {
             dialect: health.dialect,
             capabilities: health.capabilities,
           });
-
-          const schemaData = await httpAdapter.getSchema();
           setAdapter(httpAdapter);
-          setSchema(schemaData);
+
+          let schemaData: DatabaseSchema = { tables: [], views: [], triggers: [] };
+          try {
+            schemaData = await httpAdapter.getSchema();
+            setSchema(schemaData);
+          } catch (schemaErr: unknown) {
+            console.error('Failed to introspect schema:', schemaErr);
+            setErrorMessage(schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
+          }
+
+          // Fetch available schemas or databases (e.g. Postgres schemas, MySQL databases)
+          try {
+            const availableSchemas = await httpAdapter.listSchemas();
+            setSchemasList(availableSchemas);
+            if (availableSchemas.length > 0) {
+              setActiveSchema(schemaData.currentSchema || availableSchemas[0]);
+            }
+          } catch (schemaListErr) {
+            console.warn('Failed to list schemas:', schemaListErr);
+          }
 
           let displayName = `${health.dialect}_database`;
           if (health.targetPath) {
@@ -188,10 +218,14 @@ export default function App() {
           if (schemaData.tables.length > 0) {
             const defaultTable = schemaData.tables[0];
             setSelectedTable(defaultTable);
-            const queryRes = await httpAdapter.query(
-              `SELECT * FROM ${httpAdapter.quoteIdent(defaultTable.name)} LIMIT 100;`
-            );
-            setQueryResult(queryRes);
+            const queryStr = getTableQuery(defaultTable, httpAdapter);
+            setActiveEditorQuery(queryStr);
+            try {
+              const queryRes = await httpAdapter.query(queryStr);
+              setQueryResult(queryRes);
+            } catch (queryErr) {
+              console.warn('Initial table preview query failed:', queryErr);
+            }
           } else {
             setSelectedTable(null);
             setQueryResult(null);
@@ -283,8 +317,14 @@ export default function App() {
     if (!adapter) return;
     setIsLoading(true);
     try {
-      const refreshed = await adapter.getSchema(activeSchema !== 'public' ? activeSchema : undefined);
+      const refreshed = await adapter.getSchema(activeSchema || undefined);
       setSchema(refreshed);
+      try {
+        const schemas = await adapter.listSchemas();
+        setSchemasList(schemas);
+      } catch {
+        // Ignore
+      }
       if (selectedTable) {
         const found = refreshed.tables.find((t) => t.name === selectedTable.name);
         if (found) {
@@ -337,6 +377,17 @@ export default function App() {
     const res = await adapter.connectDatabase(url, readOnly);
     setSchema(res.schema);
 
+    // Refresh available schemas/databases
+    try {
+      const availableSchemas = await adapter.listSchemas();
+      setSchemasList(availableSchemas);
+      if (availableSchemas.length > 0) {
+        setActiveSchema(res.schema.currentSchema || availableSchemas[0]);
+      }
+    } catch {
+      // Ignore
+    }
+
     let displayName = `${res.dialect}_database`;
     if (res.targetPath) {
       const parts = res.targetPath.replace(/\\/g, '/').split('/');
@@ -350,10 +401,14 @@ export default function App() {
     if (res.schema.tables.length > 0) {
       const firstTbl = res.schema.tables[0];
       setSelectedTable(firstTbl);
-      const queryStr = `SELECT * FROM ${adapter.quoteIdent(firstTbl.name)} LIMIT 100;`;
+      const queryStr = getTableQuery(firstTbl, adapter);
       setActiveEditorQuery(queryStr);
-      const queryRes = await adapter.query(queryStr);
-      setQueryResult(queryRes);
+      try {
+        const queryRes = await adapter.query(queryStr);
+        setQueryResult(queryRes);
+      } catch (queryErr) {
+        console.warn('Initial table preview query failed:', queryErr);
+      }
     } else {
       setSelectedTable(null);
       setQueryResult(null);
@@ -454,7 +509,7 @@ export default function App() {
   const handleSelectTable = async (table: TableInfo) => {
     if (!adapter) return;
     setSelectedTable(table);
-    const query = `SELECT * FROM ${adapter.quoteIdent(table.name)} LIMIT 100;`;
+    const query = getTableQuery(table, adapter);
     setActiveEditorQuery(query);
     await executeSql(query);
   };

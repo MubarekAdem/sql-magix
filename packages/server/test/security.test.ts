@@ -55,6 +55,18 @@ describe('Server Security Subsystem', () => {
       },
     });
     expect(validOriginRes.status).toBe(200);
+    expect(validOriginRes.headers.get('access-control-allow-origin')).toBe('http://127.0.0.1:3000');
+
+    // Preflight OPTIONS request
+    const preflightRes = await app.request('/test', {
+      method: 'OPTIONS',
+      headers: {
+        host: '127.0.0.1:3000',
+        origin: 'http://127.0.0.1:3000',
+      },
+    });
+    expect(preflightRes.status).toBe(204);
+    expect(preflightRes.headers.get('access-control-allow-methods')).toContain('POST');
   });
 
   it('validates startup token via query param and sets session cookie', async () => {

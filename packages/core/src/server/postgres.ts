@@ -57,23 +57,62 @@ export class PostgresAdapter implements DbAdapter {
   }
 
   /**
-   * Initializes PostgreSQL connection pool.
+   * Initializes PostgreSQL connection pool with cloud SSL auto-negotiation and timeout safeguards.
    */
   async init(): Promise<void> {
     const { Pool } = await import('pg');
+    const connectionString = this.options.connectionString;
+
+    let sslConfig: any = undefined;
+    try {
+      const parsedUrl = new URL(connectionString);
+      const isLocalhost = /^(localhost|127\.0\.0\.1|::1)$/i.test(parsedUrl.hostname);
+      const sslMode = parsedUrl.searchParams.get('sslmode');
+      const sslParam = parsedUrl.searchParams.get('ssl');
+
+      const isCloudHost =
+        /neon\.tech|supabase\.co|rds\.amazonaws\.com|railway\.app|tembo\.io|cockroachlabs\.cloud|aivencloud\.com|render\.com/i.test(
+          parsedUrl.hostname
+        );
+
+      if (
+        !isLocalhost ||
+        isCloudHost ||
+        sslMode === 'require' ||
+        sslMode === 'verify-ca' ||
+        sslMode === 'verify-full' ||
+        sslMode === 'prefer' ||
+        sslParam === 'true'
+      ) {
+        sslConfig = { rejectUnauthorized: false };
+      }
+    } catch {
+      if (/sslmode=require|ssl=true/i.test(connectionString)) {
+        sslConfig = { rejectUnauthorized: false };
+      }
+    }
+
     this.pool = new Pool({
-      connectionString: this.options.connectionString,
-      statement_timeout: this.options.timeoutMs || 10000, // 10s default timeout
+      connectionString,
+      ssl: sslConfig,
+      statement_timeout: this.options.timeoutMs || 15000,
+      connectionTimeoutMillis: this.options.timeoutMs || 10000,
     });
 
-    // Test connection
-    const client = await this.pool.connect();
+    // Test connection with timeout safeguard
     try {
-      if (this.capabilities.readOnly) {
-        await client.query('SET default_transaction_read_only = on;');
+      const client = await this.pool.connect();
+      try {
+        if (this.capabilities.readOnly) {
+          await client.query('SET default_transaction_read_only = on;');
+        }
+      } finally {
+        client.release();
       }
-    } finally {
-      client.release();
+    } catch (err: unknown) {
+      await this.close();
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to connect to PostgreSQL database: ${msg}`);
     }
   }
 
@@ -296,8 +335,13 @@ export class PostgresAdapter implements DbAdapter {
     };
   }
 
-  quoteIdent(name: string): string {
-    return `"${name.replace(/"/g, '""')}"`;
+  quoteIdent(name: string, schema?: string): string {
+    const cleanName = `"${name.replace(/"/g, '""')}"`;
+    if (schema && schema !== 'public') {
+      const cleanSchema = `"${schema.replace(/"/g, '""')}"`;
+      return `${cleanSchema}.${cleanName}`;
+    }
+    return cleanName;
   }
 
   async close(): Promise<void> {

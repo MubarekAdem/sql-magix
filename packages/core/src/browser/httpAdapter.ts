@@ -75,7 +75,7 @@ export class HttpAdapter implements DbAdapter {
       body: JSON.stringify({ url, readOnly }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.error || `Failed to connect to database (${res.status})`);
     }
@@ -131,12 +131,22 @@ export class HttpAdapter implements DbAdapter {
     return data;
   }
 
-  quoteIdent(name: string): string {
+  quoteIdent(name: string, schema?: string): string {
     if (this.dialect === 'postgres') {
-      return `"${name.replace(/"/g, '""')}"`;
+      const cleanName = `"${name.replace(/"/g, '""')}"`;
+      if (schema && schema !== 'public') {
+        const cleanSchema = `"${schema.replace(/"/g, '""')}"`;
+        return `${cleanSchema}.${cleanName}`;
+      }
+      return cleanName;
     }
     if (this.dialect === 'mysql') {
-      return `\`${name.replace(/`/g, '``')}\``;
+      const cleanName = `\`${name.replace(/`/g, '``')}\``;
+      if (schema) {
+        const cleanSchema = `\`${schema.replace(/`/g, '``')}\``;
+        return `${cleanSchema}.${cleanName}`;
+      }
+      return cleanName;
     }
     return `"${name.replace(/"/g, '""')}"`;
   }

@@ -38,7 +38,7 @@ const program = new Command();
 program
   .name('sql-magix')
   .description('High-performance, dialect-neutral database viewer and query studio')
-  .version('0.1.3')
+  .version('0.1.4')
   .argument('[target]', 'Database file path or connection string URL (postgres://, mysql://, sqlite:)')
   .option('-u, --url <connectionString>', 'Database connection URL')
   .option('-p, --port <number>', 'Port to bind server', (val) => parseInt(val, 10), 8989)
@@ -118,7 +118,7 @@ program
 
     // 2. Target Display & Logging with password masking
     console.log();
-    console.log(pc.bold(pc.cyan('⚡ sql-magic studio v0.1.2')));
+    console.log(pc.bold(pc.cyan('⚡ sql-magic studio v0.1.4')));
 
     // Auto-seed if target file specified does not exist yet in server mode
     if (!isUrl && resolvedTarget !== ':memory:' && !fs.existsSync(resolvedTarget)) {
